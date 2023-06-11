@@ -17,9 +17,11 @@ conda activate f1
 The notebooks in this repository are divided into the following categories:
 
 * **Best Lap Analysis**
+
 This is used to analyze single lap performance such as Qualifying, Free Practices and Sprint Shoutout. It will only focus on the fastest lap that made by drivers instead of the overall race pace.
 
 * **Race Analysis**
+
 This is used to analyze the Sunday race or Sprint Race and will focus more on the general race pace, tyre degration, team strategy and pit stops.
 
 ## Me & F1
