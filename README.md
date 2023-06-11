@@ -1,6 +1,6 @@
 # Formula 1 Data Analysis
 
-This repository contains a collection of Jupyter notebooks that I have created to analyze Formula 1 data. The notebooks cover a wide range of topics, including race results, driver performance, and car performance. On top of that, I have created a number of visualizations to help illustrate my findings.
+This repository contains a collection of Jupyter notebooks that I have created to analyze Formula 1 data. The notebooks cover a wide range of topics, including race results, driver performance, and car performance. On top of that, I have created a number of visualizations to help illustrate my findings. The data that I used to analyze are all from FastF1, you may find their project [HERE](https://github.com/theOehrly/Fast-F1).
 
 ## Getting Started
 
@@ -18,7 +18,7 @@ The notebooks in this repository are divided into the following categories:
 
 * **Best Lap Analysis**
 
-This is used to analyze single lap performance such as Qualifying, Free Practices and Sprint Shoutout. It will only focus on the fastest lap that made by drivers instead of the overall race pace.
+This is used to analyze single lap performance such as Qualifying, Free Practices and Sprint Shootout. It will only focus on the fastest lap that made by drivers instead of the overall race pace.
 
 * **Race Analysis**
 
