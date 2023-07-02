@@ -12,6 +12,12 @@ conda create --name f1 --file requirements.txt
 conda activate f1
 ```
 
+To setup using **Docker**:
+```commandline
+docker pull edmundhong/formula1-dataanalysis
+docker run -p 8888:8888 edmundhong/formula1-dataanalysis
+```
+
 ## Notebooks
 
 The notebooks in this repository are divided into the following categories:
