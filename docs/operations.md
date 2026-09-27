@@ -29,6 +29,8 @@ gh workflow run ingest.yml -f session=2026-01-Q -f force=true
 
 For local processing, set `F1_INGEST_URL` and `F1_INGEST_TOKEN` in the shell, then run `python -m pipeline.ingest --limit 3`. Use `--local --session 2026-01-Q` to generate an ignored `.local` artifact without publishing. A failed session does not overwrite the previous successful file. Expected provider unavailability produces a failed workflow so the owner can inspect it in GitHub.
 
+Deployment verification on 27 September 2026 found that GitHub-hosted runners received HTTP 403 from the F1 timing source; the FastF1 mirror returned HTTP 404 for the same session. Both Linux and macOS runners failed, while local processing succeeded. The hourly workflow remains enabled, but unattended cloud ingestion is not yet verified. Until upstream access is restored, run the publisher locally with the existing credentials and force an individual failed historical session as shown above. Published files remain available during failed updates. Do not assume the remaining season backfill is progressing when these source errors recur.
+
 ## Publication, storage and security
 
 Session metadata and publication pointers live in `sessions`. Internal attempt history lives in `ingestion_jobs` and `ingestion_state`; anonymous clients cannot read them. All three tables have RLS enabled. Internal tables intentionally have no client policies. Published F1 analysis files are public; bucket writes are restricted to the server-side publisher.
