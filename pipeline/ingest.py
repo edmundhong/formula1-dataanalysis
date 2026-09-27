@@ -80,12 +80,24 @@ def discover(year):
 
 def prepare(meta, refresh=False):
     session = fastf1.get_session(meta["year"], meta["round"], meta["code"])
+    LOG.info("Source session path: %s", session.api_path)
     if refresh:
         with fastf1.Cache.disabled():
             session.load(telemetry=True, weather=True, messages=True)
     else:
         session.load(telemetry=True, weather=True, messages=True)
-    if session.laps.empty:
+    try:
+        loaded_laps = session.laps
+    except fastf1.exceptions.DataNotLoadedError:
+        # Keep upstream access failures distinguishable from parsing failures.
+        for host in ("https://livetiming.formula1.com", "https://livetiming-mirror.fastf1.dev"):
+            try:
+                response = requests.get(host + session.api_path + "SessionInfo.json", timeout=30)
+                LOG.error("Source availability %s: HTTP %s", host, response.status_code)
+            except requests.RequestException as exc:
+                LOG.error("Source availability %s: %s", host, type(exc).__name__)
+        raise
+    if loaded_laps.empty:
         raise RuntimeError("Lap timing is not available yet")
     statuses = session.session_status
     if statuses.empty or str(statuses.iloc[-1]["Status"]) not in ("Finished", "Finalised", "Ends"):

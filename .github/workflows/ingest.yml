@@ -21,7 +21,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   ingest:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
       F1_INGEST_URL: ${{ secrets.F1_INGEST_URL }}
