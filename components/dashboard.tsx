@@ -141,7 +141,8 @@ export default function Dashboard() {
         setData(result);
         setError("");
         const changed = lastSession.current !== result.session_id;
-        if (changed && !initial.current)
+        const firstLoad = initial.current;
+        if (changed && !firstLoad)
           setPaceOptions({
             clean: true,
             compound: "ALL",
@@ -153,7 +154,7 @@ export default function Dashboard() {
         const choices = result.drivers.map((d) => d.code);
         setSelected((current) => {
           const desired =
-            initial.current && pendingDrivers.current.length
+            firstLoad && pendingDrivers.current.length
               ? pendingDrivers.current
               : changed
                 ? []
@@ -162,7 +163,7 @@ export default function Dashboard() {
           return valid.length ? valid : best.slice(0, 2).map((l) => l.driver);
         });
         setPhase((current) => {
-          const desired = initial.current
+          const desired = firstLoad
             ? pendingPhase.current
             : changed
               ? "ALL"
