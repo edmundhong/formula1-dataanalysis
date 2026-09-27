@@ -1,0 +1,5 @@
+project_id = "formula1-dataanalysis"
+
+[functions.ingest]
+# A SHA-256 checked, high-entropy ingest token authenticates the Python worker.
+verify_jwt = false

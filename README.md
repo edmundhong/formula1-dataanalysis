@@ -1,5 +1,34 @@
 # Formula 1 Data Analysis
 
+## Web app
+
+Public dashboard: **[edmundhong.com/formula1-dataanalysis](https://edmundhong.com/formula1-dataanalysis)**.
+
+The web app covers 2026 onward, including practice, qualifying, sprint qualifying, sprints, and races. Switch between Best Lap and Race Pace, compare up to four drivers, and choose light/dark mode. Data is prepared after sessions, not streamed live. Driver/team colours come directly from FastF1's official session colour map.
+
+### Development
+
+Use Node 24 and Python 3.12. Copy `.env.example` to `.env.local` and fill in the Supabase URL and **publishable** key. Never put an ingestion token or service-role key in a `NEXT_PUBLIC_` variable.
+
+```sh
+npm ci
+npm run dev
+# Open http://localhost:3000/formula1-dataanalysis
+python -m venv .venv
+# Activate the environment, then:
+pip install -r pipeline/requirements.txt
+python -m pytest tests -q
+npm test
+npm run typecheck
+npm run build
+```
+
+### Architecture and operation
+
+The Next.js client reads the public session catalogue from Supabase and immutable JSON analysis files from Storage. Python/FastF1 runs in GitHub Actions, not in browser requests or Vercel functions. The protected Supabase `ingest` Edge Function publishes results using its server-side service credential. It checks a SHA-256 hash of a high-entropy worker token before accepting any operation; browser users have no write access.
+
+See [operations and methodology](docs/operations.md) for deployment, cache behaviour, limitations, manual recovery and calculations. The notebooks below are retained as the original exploratory work.
+
 This repository contains a collection of Jupyter notebooks that I have created to analyze Formula 1 data. The notebooks cover a wide range of topics, including race results, driver performance, and car performance. On top of that, I have created a number of visualizations to help illustrate my findings. The data that I used to analyze are all from FastF1, you may find their project [HERE](https://github.com/theOehrly/Fast-F1).
 
 ## Getting Started

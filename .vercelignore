@@ -1,0 +1,13 @@
+.git
+.github
+.venv
+.local
+fastf1_cache
+pipeline
+tests
+supabase
+*.ipynb
+requirements*.txt
+Dockerfile
+node_modules
+.env.local

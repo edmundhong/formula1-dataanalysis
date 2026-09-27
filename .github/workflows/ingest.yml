@@ -1,0 +1,52 @@
+name: Update F1 session data
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+    inputs:
+      session:
+        description: "Optional session ID, e.g. 2026-01-Q"
+        required: false
+      force:
+        description: "Refresh upstream caches and corrections"
+        type: boolean
+        default: false
+      limit:
+        description: "Maximum sessions in this run (1–10)"
+        default: "3"
+permissions:
+  contents: read
+concurrency:
+  group: f1-ingestion
+  cancel-in-progress: false
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      F1_INGEST_URL: ${{ secrets.F1_INGEST_URL }}
+      F1_INGEST_TOKEN: ${{ secrets.F1_INGEST_TOKEN }}
+      REQUESTED_SESSION: ${{ inputs.session }}
+      REQUESTED_FORCE: ${{ inputs.force }}
+      REQUESTED_LIMIT: ${{ inputs.limit || '3' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pipeline/requirements.txt
+      - name: Restore bounded FastF1 cache
+        uses: actions/cache@v4
+        with:
+          path: fastf1_cache
+          key: fastf1-v1-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: fastf1-v1-${{ runner.os }}-
+      - run: pip install -r pipeline/requirements.txt
+      - name: Discover and publish sessions
+        shell: bash
+        run: |
+          args=(--limit "$REQUESTED_LIMIT")
+          if [ -n "$REQUESTED_SESSION" ]; then args+=(--session "$REQUESTED_SESSION"); fi
+          if [ "$REQUESTED_FORCE" = "true" ]; then args+=(--force); fi
+          python -m pipeline.ingest "${args[@]}"
