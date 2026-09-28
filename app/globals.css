@@ -261,6 +261,12 @@ select {
   font-size: 14px;
   max-width: 100%;
 }
+/* Native popup menus need an opaque background separate from the select. */
+select option,
+select optgroup {
+  background-color: var(--panel);
+  color: var(--text);
+}
 .event-selectors select {
   border: 0;
   background: transparent;
