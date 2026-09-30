@@ -1,0 +1,880 @@
+{
+  "tested_at": "2026-09-28",
+  "region": "iad1",
+  "plan": "hobby",
+  "fluid": true,
+  "limits": {
+    "duration_seconds": 300,
+    "memory_mb": 2048,
+    "deadline_seconds": 270
+  },
+  "results": [
+    {
+      "session_id": "2026-12-R",
+      "mode": "source",
+      "failure_category": null,
+      "upstream": [
+        {
+          "host": "https://livetiming.formula1.com",
+          "file": "SessionInfo.json",
+          "status": 200
+        },
+        {
+          "host": "https://livetiming.formula1.com",
+          "file": "SessionStatus.jsonStream",
+          "status": 200
+        },
+        {
+          "host": "https://livetiming.formula1.com",
+          "file": "TimingData.jsonStream",
+          "status": 200
+        },
+        {
+          "host": "https://livetiming-mirror.fastf1.dev",
+          "file": "SessionInfo.json",
+          "status": 404
+        },
+        {
+          "host": "https://livetiming-mirror.fastf1.dev",
+          "file": "SessionStatus.jsonStream",
+          "status": 404
+        },
+        {
+          "host": "https://livetiming-mirror.fastf1.dev",
+          "file": "TimingData.jsonStream",
+          "status": 404
+        }
+      ],
+      "fastf1_version": "3.8.3",
+      "source_path": "/static/2026/2026-08-23_Dutch_Grand_Prix/2026-08-23_Race/",
+      "peak_memory_mb": 134.59,
+      "worker_seconds": 4.379,
+      "elapsed_seconds": 4.835,
+      "duration_headroom_pass": true,
+      "parent_peak_memory_mb": 29.86328125,
+      "memory_headroom_pass": true
+    },
+    {
+      "session_id": "2026-01-Q",
+      "mode": "source",
+      "failure_category": null,
+      "upstream": [
+        {
+          "host": "https://livetiming.formula1.com",
+          "file": "SessionInfo.json",
+          "status": 200
+        },
+        {
+          "host": "https://livetiming.formula1.com",
+          "file": "SessionStatus.jsonStream",
+          "status": 200
+        },
+        {
+          "host": "https://livetiming.formula1.com",
+          "file": "TimingData.jsonStream",
+          "status": 200
+        },
+        {
+          "host": "https://livetiming-mirror.fastf1.dev",
+          "file": "SessionInfo.json",
+          "status": 404
+        },
+        {
+          "host": "https://livetiming-mirror.fastf1.dev",
+          "file": "SessionStatus.jsonStream",
+          "status": 404
+        },
+        {
+          "host": "https://livetiming-mirror.fastf1.dev",
+          "file": "TimingData.jsonStream",
+          "status": 404
+        }
+      ],
+      "fastf1_version": "3.8.3",
+      "source_path": "/static/2026/2026-03-08_Australian_Grand_Prix/2026-03-07_Qualifying/",
+      "peak_memory_mb": 134.48,
+      "worker_seconds": 3.61,
+      "elapsed_seconds": 4.029,
+      "duration_headroom_pass": true,
+      "parent_peak_memory_mb": 29.9375,
+      "memory_headroom_pass": true
+    },
+    {
+      "session_id": "2026-12-R",
+      "mode": "full",
+      "failure_category": null,
+      "upstream": [
+        {
+          "host": "https://livetiming.formula1.com",
+          "file": "SessionInfo.json",
+          "status": 200
+        },
+        {
+          "host": "https://livetiming.formula1.com",
+          "file": "SessionStatus.jsonStream",
+          "status": 200
+        },
+        {
+          "host": "https://livetiming.formula1.com",
+          "file": "TimingData.jsonStream",
+          "status": 200
+        },
+        {
+          "host": "https://livetiming-mirror.fastf1.dev",
+          "file": "SessionInfo.json",
+          "status": 404
+        },
+        {
+          "host": "https://livetiming-mirror.fastf1.dev",
+          "file": "SessionStatus.jsonStream",
+          "status": 404
+        },
+        {
+          "host": "https://livetiming-mirror.fastf1.dev",
+          "file": "TimingData.jsonStream",
+          "status": 404
+        }
+      ],
+      "fastf1_version": "3.8.3",
+      "source_path": "/static/2026/2026-08-23_Dutch_Grand_Prix/2026-08-23_Race/",
+      "lap_count": 1368,
+      "driver_count": 22,
+      "trace_count": 20,
+      "payload_bytes": 1585682,
+      "payload_size_pass": true,
+      "rankings": [
+        {
+          "driver": "LEC",
+          "time": 74.23
+        },
+        {
+          "driver": "PIA",
+          "time": 74.303
+        },
+        {
+          "driver": "NOR",
+          "time": 74.321
+        },
+        {
+          "driver": "HAM",
+          "time": 74.566
+        },
+        {
+          "driver": "ANT",
+          "time": 74.571
+        },
+        {
+          "driver": "RUS",
+          "time": 75.393
+        },
+        {
+          "driver": "LAW",
+          "time": 75.435
+        },
+        {
+          "driver": "BOR",
+          "time": 75.515
+        },
+        {
+          "driver": "COL",
+          "time": 75.578
+        },
+        {
+          "driver": "HUL",
+          "time": 76.048
+        },
+        {
+          "driver": "GAS",
+          "time": 76.22
+        },
+        {
+          "driver": "TSU",
+          "time": 76.639
+        },
+        {
+          "driver": "LIN",
+          "time": 76.653
+        },
+        {
+          "driver": "ALO",
+          "time": 76.946
+        },
+        {
+          "driver": "ALB",
+          "time": 77.147
+        },
+        {
+          "driver": "SAI",
+          "time": 77.328
+        },
+        {
+          "driver": "PER",
+          "time": 77.523
+        },
+        {
+          "driver": "OCO",
+          "time": 77.588
+        },
+        {
+          "driver": "BOT",
+          "time": 77.822
+        },
+        {
+          "driver": "STR",
+          "time": 77.883
+        },
+        {
+          "driver": "BEA",
+          "time": 97.235
+        }
+      ],
+      "telemetry_drivers": [
+        "ALB",
+        "ALO",
+        "ANT",
+        "BOR",
+        "BOT",
+        "COL",
+        "GAS",
+        "HAM",
+        "HUL",
+        "LAW",
+        "LEC",
+        "LIN",
+        "NOR",
+        "OCO",
+        "PER",
+        "PIA",
+        "RUS",
+        "SAI",
+        "STR",
+        "TSU"
+      ],
+      "unavailable": [
+        "Some fastest-lap telemetry is not available yet."
+      ],
+      "peak_memory_mb": 619.46,
+      "worker_seconds": 39.681,
+      "elapsed_seconds": 40.296,
+      "duration_headroom_pass": true,
+      "parent_peak_memory_mb": 29.9453125,
+      "memory_headroom_pass": true
+    },
+    {
+      "session_id": "2026-12-R",
+      "mode": "full",
+      "failure_category": null,
+      "upstream": [
+        {
+          "host": "https://livetiming.formula1.com",
+          "file": "SessionInfo.json",
+          "status": 200
+        },
+        {
+          "host": "https://livetiming.formula1.com",
+          "file": "SessionStatus.jsonStream",
+          "status": 200
+        },
+        {
+          "host": "https://livetiming.formula1.com",
+          "file": "TimingData.jsonStream",
+          "status": 200
+        },
+        {
+          "host": "https://livetiming-mirror.fastf1.dev",
+          "file": "SessionInfo.json",
+          "status": 404
+        },
+        {
+          "host": "https://livetiming-mirror.fastf1.dev",
+          "file": "SessionStatus.jsonStream",
+          "status": 404
+        },
+        {
+          "host": "https://livetiming-mirror.fastf1.dev",
+          "file": "TimingData.jsonStream",
+          "status": 404
+        }
+      ],
+      "fastf1_version": "3.8.3",
+      "source_path": "/static/2026/2026-08-23_Dutch_Grand_Prix/2026-08-23_Race/",
+      "lap_count": 1368,
+      "driver_count": 22,
+      "trace_count": 20,
+      "payload_bytes": 1585682,
+      "payload_size_pass": true,
+      "rankings": [
+        {
+          "driver": "LEC",
+          "time": 74.23
+        },
+        {
+          "driver": "PIA",
+          "time": 74.303
+        },
+        {
+          "driver": "NOR",
+          "time": 74.321
+        },
+        {
+          "driver": "HAM",
+          "time": 74.566
+        },
+        {
+          "driver": "ANT",
+          "time": 74.571
+        },
+        {
+          "driver": "RUS",
+          "time": 75.393
+        },
+        {
+          "driver": "LAW",
+          "time": 75.435
+        },
+        {
+          "driver": "BOR",
+          "time": 75.515
+        },
+        {
+          "driver": "COL",
+          "time": 75.578
+        },
+        {
+          "driver": "HUL",
+          "time": 76.048
+        },
+        {
+          "driver": "GAS",
+          "time": 76.22
+        },
+        {
+          "driver": "TSU",
+          "time": 76.639
+        },
+        {
+          "driver": "LIN",
+          "time": 76.653
+        },
+        {
+          "driver": "ALO",
+          "time": 76.946
+        },
+        {
+          "driver": "ALB",
+          "time": 77.147
+        },
+        {
+          "driver": "SAI",
+          "time": 77.328
+        },
+        {
+          "driver": "PER",
+          "time": 77.523
+        },
+        {
+          "driver": "OCO",
+          "time": 77.588
+        },
+        {
+          "driver": "BOT",
+          "time": 77.822
+        },
+        {
+          "driver": "STR",
+          "time": 77.883
+        },
+        {
+          "driver": "BEA",
+          "time": 97.235
+        }
+      ],
+      "telemetry_drivers": [
+        "ALB",
+        "ALO",
+        "ANT",
+        "BOR",
+        "BOT",
+        "COL",
+        "GAS",
+        "HAM",
+        "HUL",
+        "LAW",
+        "LEC",
+        "LIN",
+        "NOR",
+        "OCO",
+        "PER",
+        "PIA",
+        "RUS",
+        "SAI",
+        "STR",
+        "TSU"
+      ],
+      "unavailable": [
+        "Some fastest-lap telemetry is not available yet."
+      ],
+      "peak_memory_mb": 620.59,
+      "worker_seconds": 36.11,
+      "elapsed_seconds": 36.718,
+      "duration_headroom_pass": true,
+      "parent_peak_memory_mb": 30.01171875,
+      "memory_headroom_pass": true
+    },
+    {
+      "session_id": "2026-01-Q",
+      "mode": "full",
+      "failure_category": null,
+      "upstream": [
+        {
+          "host": "https://livetiming.formula1.com",
+          "file": "SessionInfo.json",
+          "status": 200
+        },
+        {
+          "host": "https://livetiming.formula1.com",
+          "file": "SessionStatus.jsonStream",
+          "status": 200
+        },
+        {
+          "host": "https://livetiming.formula1.com",
+          "file": "TimingData.jsonStream",
+          "status": 200
+        },
+        {
+          "host": "https://livetiming-mirror.fastf1.dev",
+          "file": "SessionInfo.json",
+          "status": 404
+        },
+        {
+          "host": "https://livetiming-mirror.fastf1.dev",
+          "file": "SessionStatus.jsonStream",
+          "status": 404
+        },
+        {
+          "host": "https://livetiming-mirror.fastf1.dev",
+          "file": "TimingData.jsonStream",
+          "status": 404
+        }
+      ],
+      "fastf1_version": "3.8.3",
+      "source_path": "/static/2026/2026-03-08_Australian_Grand_Prix/2026-03-07_Qualifying/",
+      "lap_count": 353,
+      "driver_count": 22,
+      "trace_count": 63,
+      "payload_bytes": 3969231,
+      "payload_size_pass": true,
+      "rankings": [
+        {
+          "driver": "RUS",
+          "time": 78.518
+        },
+        {
+          "driver": "ANT",
+          "time": 78.811
+        },
+        {
+          "driver": "HAD",
+          "time": 79.303
+        },
+        {
+          "driver": "LEC",
+          "time": 79.327
+        },
+        {
+          "driver": "PIA",
+          "time": 79.38
+        },
+        {
+          "driver": "NOR",
+          "time": 79.475
+        },
+        {
+          "driver": "HAM",
+          "time": 79.478
+        },
+        {
+          "driver": "LIN",
+          "time": 79.971
+        },
+        {
+          "driver": "LAW",
+          "time": 79.994
+        },
+        {
+          "driver": "BOR",
+          "time": 80.221
+        },
+        {
+          "driver": "HUL",
+          "time": 80.303
+        },
+        {
+          "driver": "BEA",
+          "time": 80.311
+        },
+        {
+          "driver": "OCO",
+          "time": 80.491
+        },
+        {
+          "driver": "GAS",
+          "time": 80.501
+        },
+        {
+          "driver": "ALB",
+          "time": 80.941
+        },
+        {
+          "driver": "COL",
+          "time": 81.2
+        },
+        {
+          "driver": "ALO",
+          "time": 81.969
+        },
+        {
+          "driver": "PER",
+          "time": 82.605
+        },
+        {
+          "driver": "BOT",
+          "time": 83.244
+        }
+      ],
+      "telemetry_drivers": [
+        "ALB",
+        "ALO",
+        "ANT",
+        "BEA",
+        "BOR",
+        "BOT",
+        "COL",
+        "GAS",
+        "HAD",
+        "HAM",
+        "HUL",
+        "LAW",
+        "LEC",
+        "LIN",
+        "NOR",
+        "OCO",
+        "PER",
+        "PIA",
+        "RUS"
+      ],
+      "unavailable": [],
+      "peak_memory_mb": 374.55,
+      "worker_seconds": 34.381,
+      "elapsed_seconds": 34.97,
+      "duration_headroom_pass": true,
+      "parent_peak_memory_mb": 30.01171875,
+      "memory_headroom_pass": true
+    },
+    {
+      "session_id": "2026-01-Q",
+      "mode": "full",
+      "failure_category": null,
+      "upstream": [
+        {
+          "host": "https://livetiming.formula1.com",
+          "file": "SessionInfo.json",
+          "status": 200
+        },
+        {
+          "host": "https://livetiming.formula1.com",
+          "file": "SessionStatus.jsonStream",
+          "status": 200
+        },
+        {
+          "host": "https://livetiming.formula1.com",
+          "file": "TimingData.jsonStream",
+          "status": 200
+        },
+        {
+          "host": "https://livetiming-mirror.fastf1.dev",
+          "file": "SessionInfo.json",
+          "status": 404
+        },
+        {
+          "host": "https://livetiming-mirror.fastf1.dev",
+          "file": "SessionStatus.jsonStream",
+          "status": 404
+        },
+        {
+          "host": "https://livetiming-mirror.fastf1.dev",
+          "file": "TimingData.jsonStream",
+          "status": 404
+        }
+      ],
+      "fastf1_version": "3.8.3",
+      "source_path": "/static/2026/2026-03-08_Australian_Grand_Prix/2026-03-07_Qualifying/",
+      "lap_count": 353,
+      "driver_count": 22,
+      "trace_count": 63,
+      "payload_bytes": 3969231,
+      "payload_size_pass": true,
+      "rankings": [
+        {
+          "driver": "RUS",
+          "time": 78.518
+        },
+        {
+          "driver": "ANT",
+          "time": 78.811
+        },
+        {
+          "driver": "HAD",
+          "time": 79.303
+        },
+        {
+          "driver": "LEC",
+          "time": 79.327
+        },
+        {
+          "driver": "PIA",
+          "time": 79.38
+        },
+        {
+          "driver": "NOR",
+          "time": 79.475
+        },
+        {
+          "driver": "HAM",
+          "time": 79.478
+        },
+        {
+          "driver": "LIN",
+          "time": 79.971
+        },
+        {
+          "driver": "LAW",
+          "time": 79.994
+        },
+        {
+          "driver": "BOR",
+          "time": 80.221
+        },
+        {
+          "driver": "HUL",
+          "time": 80.303
+        },
+        {
+          "driver": "BEA",
+          "time": 80.311
+        },
+        {
+          "driver": "OCO",
+          "time": 80.491
+        },
+        {
+          "driver": "GAS",
+          "time": 80.501
+        },
+        {
+          "driver": "ALB",
+          "time": 80.941
+        },
+        {
+          "driver": "COL",
+          "time": 81.2
+        },
+        {
+          "driver": "ALO",
+          "time": 81.969
+        },
+        {
+          "driver": "PER",
+          "time": 82.605
+        },
+        {
+          "driver": "BOT",
+          "time": 83.244
+        }
+      ],
+      "telemetry_drivers": [
+        "ALB",
+        "ALO",
+        "ANT",
+        "BEA",
+        "BOR",
+        "BOT",
+        "COL",
+        "GAS",
+        "HAD",
+        "HAM",
+        "HUL",
+        "LAW",
+        "LEC",
+        "LIN",
+        "NOR",
+        "OCO",
+        "PER",
+        "PIA",
+        "RUS"
+      ],
+      "unavailable": [],
+      "peak_memory_mb": 376.19,
+      "worker_seconds": 31.31,
+      "elapsed_seconds": 31.922,
+      "duration_headroom_pass": true,
+      "parent_peak_memory_mb": 30.01171875,
+      "memory_headroom_pass": true
+    },
+    {
+      "session_id": "2026-01-Q",
+      "mode": "full",
+      "failure_category": null,
+      "upstream": [
+        {
+          "host": "https://livetiming.formula1.com",
+          "file": "SessionInfo.json",
+          "status": 200
+        },
+        {
+          "host": "https://livetiming.formula1.com",
+          "file": "SessionStatus.jsonStream",
+          "status": 200
+        },
+        {
+          "host": "https://livetiming.formula1.com",
+          "file": "TimingData.jsonStream",
+          "status": 200
+        },
+        {
+          "host": "https://livetiming-mirror.fastf1.dev",
+          "file": "SessionInfo.json",
+          "status": 404
+        },
+        {
+          "host": "https://livetiming-mirror.fastf1.dev",
+          "file": "SessionStatus.jsonStream",
+          "status": 404
+        },
+        {
+          "host": "https://livetiming-mirror.fastf1.dev",
+          "file": "TimingData.jsonStream",
+          "status": 404
+        }
+      ],
+      "fastf1_version": "3.8.3",
+      "source_path": "/static/2026/2026-03-08_Australian_Grand_Prix/2026-03-07_Qualifying/",
+      "lap_count": 353,
+      "driver_count": 22,
+      "trace_count": 63,
+      "payload_bytes": 3969231,
+      "payload_size_pass": true,
+      "rankings": [
+        {
+          "driver": "RUS",
+          "time": 78.518
+        },
+        {
+          "driver": "ANT",
+          "time": 78.811
+        },
+        {
+          "driver": "HAD",
+          "time": 79.303
+        },
+        {
+          "driver": "LEC",
+          "time": 79.327
+        },
+        {
+          "driver": "PIA",
+          "time": 79.38
+        },
+        {
+          "driver": "NOR",
+          "time": 79.475
+        },
+        {
+          "driver": "HAM",
+          "time": 79.478
+        },
+        {
+          "driver": "LIN",
+          "time": 79.971
+        },
+        {
+          "driver": "LAW",
+          "time": 79.994
+        },
+        {
+          "driver": "BOR",
+          "time": 80.221
+        },
+        {
+          "driver": "HUL",
+          "time": 80.303
+        },
+        {
+          "driver": "BEA",
+          "time": 80.311
+        },
+        {
+          "driver": "OCO",
+          "time": 80.491
+        },
+        {
+          "driver": "GAS",
+          "time": 80.501
+        },
+        {
+          "driver": "ALB",
+          "time": 80.941
+        },
+        {
+          "driver": "COL",
+          "time": 81.2
+        },
+        {
+          "driver": "ALO",
+          "time": 81.969
+        },
+        {
+          "driver": "PER",
+          "time": 82.605
+        },
+        {
+          "driver": "BOT",
+          "time": 83.244
+        }
+      ],
+      "telemetry_drivers": [
+        "ALB",
+        "ALO",
+        "ANT",
+        "BEA",
+        "BOR",
+        "BOT",
+        "COL",
+        "GAS",
+        "HAD",
+        "HAM",
+        "HUL",
+        "LAW",
+        "LEC",
+        "LIN",
+        "NOR",
+        "OCO",
+        "PER",
+        "PIA",
+        "RUS"
+      ],
+      "unavailable": [],
+      "publication": {
+        "version": "9bb3cf3b3d6bc602519e",
+        "bytes": 3601469,
+        "destination": "isolated_probe"
+      },
+      "peak_memory_mb": 375.49,
+      "worker_seconds": 39.684,
+      "elapsed_seconds": 40.4,
+      "duration_headroom_pass": true,
+      "parent_peak_memory_mb": 30.015625,
+      "memory_headroom_pass": true
+    }
+  ]
+}

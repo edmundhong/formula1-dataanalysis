@@ -59,7 +59,7 @@ def test_retry_schedule_corrections_and_bounds():
     assert not due(session(starts_at=NOW.isoformat()),NOW,force=True)
     assert not due(session(status="cancelled"),NOW,force=True)
     assert not due(session(year=2025),NOW,force=True)
-    assert due(session(year=2027),NOW)  # Fixed 2026 floor, no hardcoded upper season.
+    assert not due(session(year=2027),NOW)  # The dashboard and worker are scoped to 2026.
     published=session(artifact_path="one.json",starts_at=(NOW-timedelta(days=2)).isoformat(),correction_stage=0)
     assert due(published,NOW) and correction_stage(published,NOW)==1
     published["correction_stage"]=1

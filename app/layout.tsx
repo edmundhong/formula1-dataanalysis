@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Formula 1 Lab · Edmund Hong",
   description:
-    "Explore Formula 1 fastest laps, telemetry and race pace. Independent, post-session analysis from 2026 onward.",
+    "Explore Formula 1 fastest laps, telemetry and race pace. Independent, post-session analysis for the 2026 season.",
 };
 export default function RootLayout({
   children,

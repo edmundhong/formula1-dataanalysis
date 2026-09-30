@@ -187,6 +187,7 @@ def main():
     parser.add_argument("--limit", type=int, default=3)
     parser.add_argument("--session")
     parser.add_argument("--force", action="store_true")
+    parser.add_argument("--calendar-only", action="store_true", help="Refresh the catalog; Supabase dispatch handles analysis")
     parser.add_argument("--local", action="store_true", help="Save a specified session locally without publishing")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO)
@@ -195,8 +196,8 @@ def main():
     fastf1.Cache.enable_cache(str(cache))
     if args.local:
         year, rnd, code = args.session.split("-")
-        if int(year) < 2026:
-            raise ValueError("Only 2026 onward is supported")
+        if int(year) != 2026:
+            raise ValueError("Only the 2026 season is supported")
         analysis = prepare({"year": int(year), "round": int(rnd), "code": code, "id": args.session}, args.force)
         Path(".local").mkdir(exist_ok=True)
         Path(f".local/{args.session}.json").write_text(json.dumps(analysis, allow_nan=False, separators=(",", ":")), encoding="utf-8")
@@ -205,9 +206,11 @@ def main():
     now = datetime.now(timezone.utc)
     calendar_checked = parse(state.get("calendar_checked_at"))
     if not calendar_checked or (now - calendar_checked).total_seconds() > 86400 or args.force:
-        for year in range(2026, now.year + 1):
+        for year in (2026,):
             request("calendar", year=year, sessions=discover(year))
         state = request("state")
+    if args.calendar_only:
+        return
     candidates = [s for s in state["sessions"] if (not args.session or s["id"] == args.session) and due(s, now, args.force)]
     candidates.sort(key=lambda s: s["starts_at"], reverse=True)
     failures = 0

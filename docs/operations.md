@@ -12,32 +12,32 @@
 
 ## Automatic ingestion
 
-The workflow runs on the default branch hourly at minute 17. It refreshes the race calendar daily and processes at most three eligible sessions per run, newest first. Preseason testing and seasons before 2026 are excluded. Later seasons are added as the calendar year advances.
+The GitHub workflow runs hourly at minute 17 and refreshes the calendar daily.
+Analysis now uses the durable Supabase queue and bounded Vercel worker described
+in [queue operations](queue-operations.md). Follow that deployment order before
+enabling dispatch; the default allowlist contains only the two probe sessions.
 
-Scheduled start times are UTC. To avoid ingesting incomplete events, attempts start conservatively after three hours for races, 90 minutes for sprints/sprint qualifying, and two hours for other sessions. The processor also requires a final FastF1 session status (`Finished`, `Finalised`, or `Ends`). Red-flag delays can postpone ingestion.
+Sessions are attempted after three hours for races, 90 minutes for sprints/sprint
+qualifying, and two hours for other sessions. FastF1 must also confirm a final
+session status. Historical failures retry with bounded backoff regardless of age.
+Published sessions retain correction passes after 24 hours and seven days.
 
-Unpublished recent sessions retry hourly for 48 hours, then daily through day seven. Unattempted older sessions are eligible for backfill. Published sessions receive correction passes after 24 hours and seven days relative to the estimated session end. Correction passes bypass FastF1 caches. Sessions needing later manual recovery can be forced explicitly.
+Use `gh workflow run ingest.yml -f force=true` to refresh the calendar. For analysis
+recovery, inspect and reset a terminal queue row as described in the queue runbook.
+For an offline local artifact, use `python -m pipeline.ingest --local --session 2026-01-Q`.
+Legacy local publication is rejected for sessions owned by the queue.
 
-GitHub schedules can be delayed or dropped, and public-repository scheduled workflows can be disabled after 60 days without repository activity. Check the Actions page if the catalogue stops updating; re-enable the workflow when needed. Supabase free projects may pause during inactivity; restore the project from its dashboard before rerunning ingestion. No paid upgrade is enabled automatically.
-
-Manual recovery/backfill from GitHub CLI:
-
-```sh
-gh workflow run ingest.yml -f limit=10
-gh workflow run ingest.yml -f session=2026-01-Q -f force=true
-```
-
-For local processing, set `F1_INGEST_URL` and `F1_INGEST_TOKEN` in the shell, then run `python -m pipeline.ingest --limit 3`. Use `--local --session 2026-01-Q` to generate an ignored `.local` artifact without publishing. A failed session does not overwrite the previous successful file. Expected provider unavailability produces a failed workflow so the owner can inspect it in GitHub.
-
-Deployment verification on 27 September 2026 found that GitHub-hosted runners received HTTP 403 from the F1 timing source; the FastF1 mirror returned HTTP 404 for the same session. Both Linux and macOS runners failed, while local processing succeeded. The hourly workflow remains enabled, but unattended cloud ingestion is not yet verified. Until upstream access is restored, run the publisher locally with the existing credentials and force an individual failed historical session as shown above. Published files remain available during failed updates. Do not assume the remaining season backfill is progressing when these source errors recur.
-
+GitHub-hosted timing-source refusal was reproduced in September 2026; the Vercel
+probe succeeded for two sessions in iad1. This supports the bounded rollout, not
+guaranteed upstream access or season-wide coverage. Supabase free projects may
+pause during inactivity; restore them before expecting queue progress.
 ## Publication, storage and security
 
 Session metadata and publication pointers live in `sessions`. Internal attempt history lives in `ingestion_jobs` and `ingestion_state`; anonymous clients cannot read them. All three tables have RLS enabled. Internal tables intentionally have no client policies. Published F1 analysis files are public; bucket writes are restricted to the server-side publisher.
 
 Files use content-derived version names. Upload completes before the catalogue pointer changes. Repeating a publication is idempotent, and malformed uploads leave the last successful pointer intact. Old artifacts are removed after seven days while retaining the current and previous versions. A new upload is refused above the app's conservative 750 MiB storage budget; existing data remains available. Watch database size and monthly bandwidth in Supabase as traffic and seasons increase.
 
-Raw FastF1 caches stay in the GitHub runner cache, bounded to approximately 1 GB. They are never committed or copied to Supabase. Frontend payloads retain 1,000 samples only for each driver's fastest valid lap and qualifying segment. Browser catalogue refresh runs every five minutes while visible; immutable analysis files use long cache lifetimes.
+Raw FastF1 analysis caches live in a fresh temporary directory for each Vercel worker and are removed when it finishes. They are never committed or copied to Supabase. Frontend payloads retain 1,000 samples only for each driver's fastest valid lap and qualifying segment. Browser catalogue refresh runs every five minutes while visible; immutable analysis files use long cache lifetimes.
 
 ## Analysis definitions
 

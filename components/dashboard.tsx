@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AnalysisJob } from "./analysis-job";
 import {
   Activity,
   ArrowRight,
@@ -16,6 +17,7 @@ import {
 } from "lucide-react";
 import { configured, loadAnalysis, loadCatalog } from "@/lib/data";
 import { bestLaps, formatTime } from "@/lib/analysis";
+import { completedSession } from "@/lib/jobs";
 import type { Analysis, Session, Status } from "@/lib/types";
 import {
   BestLapPanels,
@@ -45,6 +47,7 @@ export default function Dashboard() {
     [theme, setTheme] = useState("dark"),
     [help, setHelp] = useState(false);
   const [retry, setRetry] = useState(0);
+  const refreshPublished = useCallback(() => setRetry((v) => v + 1), []);
   const [paceOptions, setPaceOptions] = useState<PaceOptions>({
     clean: true,
     compound: "ALL",
@@ -367,7 +370,7 @@ export default function Dashboard() {
               <small>
                 {session?.updated_at
                   ? `Updated ${new Date(session.updated_at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}`
-                  : "Automatic post-session updates"}
+                  : "Post-session data availability"}
               </small>
             </div>
             <button
@@ -380,6 +383,7 @@ export default function Dashboard() {
             </button>
           </div>
         </section>
+        {session && session.status !== "cancelled" && <AnalysisJob key={session.id} session={session} onPublished={refreshPublished} />}
         <div className="view-bar">
           <div className="view-tabs" role="tablist" aria-label="Analysis view">
             <button
@@ -423,28 +427,33 @@ export default function Dashboard() {
           </div>
         ) : !currentData ? (
           <div className="waiting-state">
-            <Flag size={32} />
+            {session && completedSession(session) ? <Timer size={32} /> : <Flag size={32} />}
             <span className="eyebrow">
-              {session ? statuses[session.status] : "DATA CONNECTION"}
+              {session && completedSession(session)
+                ? "PULLING FASTF1 DATA"
+                : session
+                  ? statuses[session.status]
+                  : "DATA CONNECTION"}
             </span>
             <h2>
               {session?.status === "cancelled"
                 ? "This session is cancelled"
-                : session
-                  ? `${session.name} analysis is on its way`
+                : session && completedSession(session)
+                  ? `Preparing ${session.name} stats`
+                  : session
+                  ? `${session.name} analysis is not available yet`
                   : configured
                     ? "The first sessions are being prepared"
                     : "The data connection is being set up"}
             </h2>
             <p>
-              {session
+              {session && completedSession(session)
+                ? `We’re pulling ${session.event} timing and telemetry from FastF1. This page will update automatically when it is ready.`
+                : session
                 ? `${session.event} · ${new Date(session.starts_at).toLocaleString()}`
                 : "The calendar will appear as soon as the first ingestion completes."}
             </p>
-            <p>
-              Available data is checked automatically after each session. You
-              can explore another completed session while you wait.
-            </p>
+            {!session || !completedSession(session) ? <p>Completed sessions are pulled from FastF1 automatically and the stats will appear here when the analysis is ready.</p> : null}
           </div>
         ) : (
           <div id="analysis-content" role="tabpanel">
@@ -621,8 +630,8 @@ function InfoText() {
   return (
     <p>
       This is independent post-session analysis using FastF1 data. Sessions from
-      2026 onward are checked hourly; source availability and scheduled-job
-      delays can affect publication. Track dominance and telemetry deltas are
+      2026 sessions appear in the calendar. FastF1 source availability and worker
+      capacity can affect publication. Track dominance and telemetry deltas are
       estimates. Race-pace comparisons do not correct for fuel, traffic, or
       weather.
     </p>

@@ -14,7 +14,7 @@ const check = (result: { error: unknown }) => {
 const validId = (id: unknown): id is string =>
   typeof id === "string" &&
   /^20\d{2}-\d{2}-(FP[123]|Q|SQ|S|R)$/.test(id) &&
-  Number(id.slice(0, 4)) >= 2026;
+  Number(id.slice(0, 4)) === 2026;
 
 Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return reply({ error: "Method not allowed" }, 405);
@@ -65,7 +65,7 @@ Deno.serve(async (req: Request) => {
     if (body.action === "calendar") {
       if (
         !Number.isInteger(body.year) ||
-        body.year < 2026 ||
+        body.year !== 2026 ||
         !Array.isArray(body.sessions) ||
         !body.sessions.length ||
         body.sessions.length > 200
@@ -152,6 +152,11 @@ Deno.serve(async (req: Request) => {
       .single();
     check(lookup);
     const session = lookup.data;
+    const queued = await db.from("analysis_queue").select("state,lease_token,lease_expires_at").eq("session_id", session.id).maybeSingle();
+    check(queued);
+    if (queued.data && (!body.lease_token || body.lease_token !== queued.data.lease_token || queued.data.state !== "processing" || Date.parse(queued.data.lease_expires_at) <= Date.now()))
+      return reply({ error: "Inactive worker lease" }, 409);
+    if (body.lease_token && !queued.data) return reply({ error: "Unknown worker lease" }, 409);
     if (body.action === "failed") {
       check(
         await db
@@ -211,31 +216,13 @@ Deno.serve(async (req: Request) => {
         throw upload.error;
     }
     // The artifact exists before the public pointer changes. Readers never see partial files.
-    check(
-      await db
-        .from("sessions")
-        .update({
-          artifact_path: path,
-          version: body.version,
-          updated_at: now,
-          status: artifact.unavailable.length ? "partial" : "available",
-        })
-        .eq("id", session.id),
-    );
-    check(
-      await db
-        .from("ingestion_jobs")
-        .update({
-          last_checked_at: now,
-          correction_stage: Math.max(
-            0,
-            Math.min(2, Number(body.correction_stage) || 0),
-          ),
-          last_error: null,
-          artifact_bytes: bytes.byteLength,
-        })
-        .eq("session_id", session.id),
-    );
+    const committed = await db.rpc("publish_analysis", {
+      p_session: session.id, p_lease: body.lease_token || null, p_path: path,
+      p_version: body.version, p_partial: artifact.unavailable.length > 0,
+      p_bytes: bytes.byteLength, p_stage: Math.max(0, Math.min(2, Math.trunc(Number(body.correction_stage) || 0))),
+    });
+    check(committed);
+    if (!committed.data) return reply({ error: "Worker lease expired or session changed; previous data retained" }, 409);
     const prefix = `${session.year}/${session.id}`;
     const objects = await db.storage
       .from("analysis")

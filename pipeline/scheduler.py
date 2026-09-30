@@ -9,7 +9,7 @@ def parse(value):
 
 def due(session, now=None, force=False):
     now = now or datetime.now(timezone.utc)
-    if session["year"] < 2026 or session["status"] == "cancelled":
+    if session["year"] != 2026 or session["status"] == "cancelled":
         return False
     end = parse(session["starts_at"]) + timedelta(hours=DURATIONS.get(session["code"], 2))
     if now < end:

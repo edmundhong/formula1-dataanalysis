@@ -4,7 +4,7 @@
 
 Public dashboard: **[edmundhong.com/formula1-dataanalysis](https://edmundhong.com/formula1-dataanalysis)**.
 
-The web app covers 2026 onward, including practice, qualifying, sprint qualifying, sprints, and races. Switch between Best Lap and Race Pace, compare up to four drivers, and choose light/dark mode. Data is prepared after sessions, not streamed live. Driver/team colours come directly from FastF1's official session colour map.
+The web app covers the 2026 race weekends, including practice, qualifying, sprint qualifying, sprints, and races. Switch between Best Lap and Race Pace, compare up to four drivers, and choose light/dark mode. Select a completed session and, if it has not been cached yet, the dashboard automatically requests a FastF1 analysis and updates when it is published. Driver/team colours come directly from FastF1's official session colour map.
 
 ### Development
 
@@ -25,7 +25,9 @@ npm run build
 
 ### Architecture and operation
 
-The Next.js client reads the public session catalogue from Supabase and immutable JSON analysis files from Storage. Python/FastF1 runs in GitHub Actions, not in browser requests or Vercel functions. The protected Supabase `ingest` Edge Function publishes results using its server-side service credential. It checks a SHA-256 hash of a high-entropy worker token before accepting any operation; browser users have no write access.
+The Next.js client reads the public session catalogue from Supabase and immutable JSON analysis files from Storage. A durable Supabase queue dispatches bounded Python/FastF1 workers on Vercel; GitHub Actions refreshes the calendar. Visitors can request missing completed sessions through a rate-limited server endpoint. The protected Supabase `ingest` Edge Function publishes immutable artifacts and atomically updates pointers only for the current worker lease.
+
+See [queue deployment and rollout](docs/queue-operations.md) before enabling this path. It starts disabled, restricted to the two sessions validated by the Vercel probe, with one worker and a daily attempt budget.
 
 See [operations and methodology](docs/operations.md) for deployment, cache behaviour, limitations, manual recovery and calculations. The notebooks below are retained as the original exploratory work.
 

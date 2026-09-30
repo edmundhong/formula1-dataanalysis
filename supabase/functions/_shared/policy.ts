@@ -30,7 +30,7 @@ export function publicationPath(id: string, year: number, version: string) {
     !/^[a-f0-9]{20}$/.test(version) ||
     !/^20\d{2}-\d{2}-(FP[123]|Q|SQ|S|R)$/.test(id) ||
     Number(id.slice(0, 4)) !== year ||
-    year < 2026
+    year !== 2026
   )
     throw new Error("Invalid publication identity");
   return `${year}/${id}/${version}.json`;

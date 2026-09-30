@@ -4,16 +4,10 @@ on:
     - cron: "17 * * * *"
   workflow_dispatch:
     inputs:
-      session:
-        description: "Optional session ID, e.g. 2026-01-Q"
-        required: false
       force:
-        description: "Refresh upstream caches and corrections"
+        description: "Refresh the calendar now"
         type: boolean
         default: false
-      limit:
-        description: "Maximum sessions in this run (1–10)"
-        default: "3"
 permissions:
   contents: read
 concurrency:
@@ -26,9 +20,7 @@ jobs:
     env:
       F1_INGEST_URL: ${{ secrets.F1_INGEST_URL }}
       F1_INGEST_TOKEN: ${{ secrets.F1_INGEST_TOKEN }}
-      REQUESTED_SESSION: ${{ inputs.session }}
       REQUESTED_FORCE: ${{ inputs.force }}
-      REQUESTED_LIMIT: ${{ inputs.limit || '3' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -43,10 +35,9 @@ jobs:
           key: fastf1-v1-${{ runner.os }}-${{ github.run_id }}
           restore-keys: fastf1-v1-${{ runner.os }}-
       - run: pip install -r pipeline/requirements.txt
-      - name: Discover and publish sessions
+      - name: Refresh calendar (analysis runs in the durable Vercel queue)
         shell: bash
         run: |
-          args=(--limit "$REQUESTED_LIMIT")
-          if [ -n "$REQUESTED_SESSION" ]; then args+=(--session "$REQUESTED_SESSION"); fi
+          args=(--calendar-only)
           if [ "$REQUESTED_FORCE" = "true" ]; then args+=(--force); fi
           python -m pipeline.ingest "${args[@]}"

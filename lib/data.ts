@@ -15,7 +15,7 @@ export async function loadCatalog(): Promise<Session[]> {
     .select(
       "id,year,round,event,country,location,code,name,starts_at,status,artifact_path,version,updated_at",
     )
-    .gte("year", 2026)
+    .eq("year", 2026)
     .order("starts_at", { ascending: false })
     .limit(2000);
   if (error)
