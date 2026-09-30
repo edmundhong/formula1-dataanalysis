@@ -67,7 +67,7 @@ test("queue SQL enforces admission, leases, recovery, publication fencing and pe
       'insert into net.calls(url,body) values(url,body) returning id';
       create schema cron; create function cron.schedule(text,text,text) returns bigint language sql as 'select 1::bigint';`);
     await db.exec(readFileSync("supabase/queue-dispatch.sql", "utf8").replace(/^create extension[^;]+;/gm, ""));
-    await db.exec("delete from analysis_queue; update analysis_control set daily_attempts=0,last_dispatch_at=null");
+    await db.exec("delete from analysis_queue; insert into analysis_queue(session_id) values ('2026-01-Q'); update analysis_control set daily_attempts=0,last_dispatch_at=null");
     await call("dispatch_analysis()");
     assert.equal(await call("(select count(*)::int from net.calls where url like '%worker%')"), 1);
     assert.equal(await call("(select count(*)::int from net.calls where url like '%owner%')"), 0);
