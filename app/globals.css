@@ -1430,3 +1430,10 @@ footer > a {
     scroll-behavior: auto !important;
   }
 }
+
+.session-summary { margin-bottom: 20px; }
+.summary-heading { margin-bottom: 14px; }
+.summary-heading .footnote { margin: 8px 0 12px; }
+.summary-pills { display: inline-flex; flex-wrap: wrap; border-radius: 20px; padding: 5px; gap: 5px; }
+.summary-pills button { border-radius: 16px; padding: 8px 14px; font-size: 12px; }
+.summary-pills button:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }

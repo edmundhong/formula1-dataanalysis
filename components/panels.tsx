@@ -22,6 +22,9 @@ import type {
 import { advancedPaceLaps } from "@/lib/advanced";
 import { useLapTelemetry } from "./use-lap-telemetry";
 import { cornerMarkers } from "@/lib/corners";
+const comparisonColors = ["#479eff", "#f59e0b", "#c084fc", "#10b981"];
+const comparisonColor = (index: number) => comparisonColors[index % comparisonColors.length];
+const traceColor = (t: Trace, traces: Trace[]) => comparisonColor(t.comparison_id?.startsWith("slot-") ? Number(t.comparison_id.slice(5)) : traces.indexOf(t));
 const traceId = (t: Trace) => t.comparison_id ?? t.driver;
 const traceLabel = (t: Trace) => t.label ?? t.driver;
 const Chart = dynamic(() => import("./chart"), {
@@ -120,7 +123,7 @@ function TrackMap({
     const index = traces.findIndex((t) => traceId(t) === driver);
     return index > 0
       ? `url(#driver-pattern-${index})`
-      : color(drivers, traces[index]?.driver || driver);
+      : traces[index] ? traceColor(traces[index], traces) : "#8c93a3";
   };
   const points = (start: number, end: number) =>
     ref.x
@@ -150,7 +153,7 @@ function TrackMap({
                 patternUnits="userSpaceOnUse"
                 patternTransform="rotate(45)"
               >
-                <rect width="20" height="20" fill={color(drivers, t.driver)} />
+                <rect width="20" height="20" fill={traceColor(t, traces)} />
                 <rect width="2" height="20" fill="var(--panel)" />
               </pattern>
             ))}
@@ -267,7 +270,7 @@ function TrackMap({
             <div key={traceId(t)}>
               <span
                 className="driver-dot"
-                style={{ background: color(drivers, t.driver) }}
+                style={{ background: traceColor(t, traces) }}
               />
               <strong>{traceLabel(t)}</strong>
               <span className="mono">{percentage.toFixed(0)}%</span>
@@ -288,7 +291,7 @@ function TrackMap({
       </div>
       <p className="footnote">
         <Info size={13} />
-        FastF1 team colours:{" "}
+        Comparison colours:{" "}
         {traces
           .map((t, i) => `${traceLabel(t)} ${i ? "striped" : "solid"}`)
           .join(" · ")}
@@ -298,89 +301,11 @@ function TrackMap({
   );
 }
 
-export function BestLapPanels({
-  data,
-  selected,
-  phase,
-  theme,
-  session,
-  advanced,
-}: {
-  data: Analysis;
-  selected: string[];
-  phase: string;
-  theme: string;
-  session: Session;
-  advanced: AdvancedSelection;
+export function SessionSummary({ data, selected, phase, theme }: {
+  data: Analysis; selected: string[]; phase: string; theme: string;
 }) {
+  const [view, setView] = useState("fastest");
   const best = useMemo(() => bestLaps(data.laps, phase), [data, phase]);
-  const lapTelemetry = useLapTelemetry(data, session, advanced.slots);
-  const defaultTraces = useMemo(
-    () => selectedTraces(data, selected, phase),
-    [data, selected, phase],
-  );
-  const traces = advanced.slots.length
-    ? lapTelemetry.rows.flatMap((r) => (r.trace ? [r.trace] : []))
-    : defaultTraces;
-  const reference = advanced.slots.length
-    ? lapTelemetry.rows[advanced.reference]?.trace
-    : traces[0];
-  const [channel, setChannel] = useState<
-    "speed" | "throttle" | "brake" | "gear" | "rpm"
-  >("speed");
-  const units = {
-    speed: "km/h",
-    throttle: "%",
-    brake: "0 / 1",
-    gear: "Gear",
-    rpm: "RPM",
-  };
-  const telemetry = useMemo(
-    () => ({
-      dataZoom: zoom,
-      xAxis: { name: "Lap distance (m)", nameLocation: "middle", nameGap: 29 },
-      yAxis: { name: units[channel] },
-      series: traces.map((t, i) =>
-        line(
-          traceLabel(t),
-          t.distance.map((d, j) => [
-            reference?.distance[j] ?? d,
-            t[channel][j],
-          ]),
-          color(data.drivers, t.driver),
-          i,
-        ),
-      ),
-    }),
-    [traces, reference, channel, data.drivers],
-  );
-  const delta = useMemo(
-    () => ({
-      dataZoom: zoom,
-      xAxis: { name: "Lap distance (m)", nameLocation: "middle", nameGap: 29 },
-      yAxis: { name: "Gap (s)" },
-      tooltip: {
-        valueFormatter: (value: unknown) =>
-          typeof value === "number" ? value.toFixed(3) : "—",
-      },
-      series: traces
-        .filter((t) => t.reliable && reference?.reliable)
-        .map((t, i) =>
-          line(
-            traceLabel(t),
-            t.distance.map((d, j) => [
-              reference!.distance[j] ?? d,
-              t.time[j] != null && reference!.time[j] != null
-                ? t.time[j]! - reference!.time[j]!
-                : null,
-            ]),
-            color(data.drivers, t.driver),
-            i,
-          ),
-        ),
-    }),
-    [traces, reference, data.drivers],
-  );
   const sectorOption = useMemo(
     () => ({
       legend: { top: 0 },
@@ -432,9 +357,18 @@ export function BestLapPanels({
     return [...teams].sort((a, b) => b[1].max - a[1].max);
   }, [data, phase]);
   return (
-    <>
-      <div className="analysis-grid">
-        <Panel
+    <section className="session-summary" aria-label="Session overview">
+      <div className="summary-heading">
+        <span className="eyebrow">SESSION OVERVIEW</span>
+        <p className="footnote">Lap choices and pace filters do not change session benchmarks. Fastest laps, best sectors and team speeds follow the session phase; best sectors follows the comparison drivers. Track conditions covers the full session.</p>
+        <div className="mini-tabs summary-pills" aria-label="Session summary views">
+          {[["fastest", "Fastest laps"], ["sectors", "Best sectors"], ["speed", "Team speed range"], ["weather", "Track conditions"]].map(([id, label]) => (
+            <button key={id} type="button" aria-pressed={view === id} aria-controls="session-summary-content" className={view === id ? "active" : ""} onClick={() => setView(id)}>{label}</button>
+          ))}
+        </div>
+      </div>
+      <div id="session-summary-content">
+        {view === "fastest" && (        <Panel
           title="Fastest laps"
           eyebrow="SESSION SUMMARY · THE BENCHMARK"
           aside={<span className="pill">{best.length} drivers</span>}
@@ -491,6 +425,143 @@ export function BestLapPanels({
             )}
           </div>
         </Panel>
+)}
+        {view === "sectors" && (        <Panel
+          title="Best sectors"
+          eyebrow="SESSION SUMMARY · THEORETICAL BEST"
+        >
+          <Chart
+            option={sectorOption}
+            theme={theme}
+            label="Best sector times for selected drivers"
+          />
+          <p className="footnote">
+            Each driver’s best valid sector; these can come from different laps.
+          </p>
+        </Panel>
+)}
+        {view === "speed" && (        <Panel title="Team speed range" eyebrow="ON EACH TEAM’S FASTEST LAP">
+          <div className="speed-table">
+            <div className="speed-head">
+              <span>Team</span>
+              <span>Min / Max · km/h</span>
+            </div>
+            {teamSpeeds.map(([team, s]) => (
+              <div className="speed-row" key={team}>
+                <span>
+                  <i
+                    className="driver-dot"
+                    style={{ background: color(data.drivers, s.driver) }}
+                  />
+                  {team}
+                </span>
+                <strong className="mono">
+                  <span className="muted">{s.min.toFixed(0)}</span> /{" "}
+                  {s.max.toFixed(0)}
+                </strong>
+                <div
+                  className="speed-bar"
+                  style={{
+                    width: `${(s.max / 380) * 100}%`,
+                    background: color(data.drivers, s.driver),
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        </Panel>
+)}
+        {view === "weather" && <WeatherPanel data={data} theme={theme} />}
+      </div>
+    </section>
+  );
+}
+
+export function BestLapPanels({
+  data,
+  selected,
+  phase,
+  theme,
+  session,
+  advanced,
+}: {
+  data: Analysis;
+  selected: string[];
+  phase: string;
+  theme: string;
+  session: Session;
+  advanced: AdvancedSelection;
+}) {
+  const lapTelemetry = useLapTelemetry(data, session, advanced.slots);
+  const defaultTraces = useMemo(
+    () => selectedTraces(data, selected, phase),
+    [data, selected, phase],
+  );
+  const traces = advanced.slots.length
+    ? lapTelemetry.rows.flatMap((r) => (r.trace ? [r.trace] : []))
+    : defaultTraces;
+  const reference = advanced.slots.length
+    ? lapTelemetry.rows[advanced.reference]?.trace
+    : traces[0];
+  const [channel, setChannel] = useState<
+    "speed" | "throttle" | "brake" | "gear" | "rpm"
+  >("speed");
+  const units = {
+    speed: "km/h",
+    throttle: "%",
+    brake: "0 / 1",
+    gear: "Gear",
+    rpm: "RPM",
+  };
+  const telemetry = useMemo(
+    () => ({
+      dataZoom: zoom,
+      xAxis: { name: "Lap distance (m)", nameLocation: "middle", nameGap: 29 },
+      yAxis: { name: units[channel] },
+      series: traces.map((t, i) =>
+        line(
+          traceLabel(t),
+          t.distance.map((d, j) => [
+            reference?.distance[j] ?? d,
+            t[channel][j],
+          ]),
+          traceColor(t, traces),
+          i,
+        ),
+      ),
+    }),
+    [traces, reference, channel, data.drivers],
+  );
+  const delta = useMemo(
+    () => ({
+      dataZoom: zoom,
+      xAxis: { name: "Lap distance (m)", nameLocation: "middle", nameGap: 29 },
+      yAxis: { name: "Gap (s)" },
+      tooltip: {
+        valueFormatter: (value: unknown) =>
+          typeof value === "number" ? value.toFixed(3) : "—",
+      },
+      series: traces
+        .filter((t) => t.reliable && reference?.reliable)
+        .map((t, i) =>
+          line(
+            traceLabel(t),
+            t.distance.map((d, j) => [
+              reference!.distance[j] ?? d,
+              t.time[j] != null && reference!.time[j] != null
+                ? t.time[j]! - reference!.time[j]!
+                : null,
+            ]),
+            traceColor(t, traces),
+            i,
+          ),
+        ),
+    }),
+    [traces, reference, data.drivers],
+  );
+  return (
+    <>
+      <div>
         <Panel
           title="Track dominance"
           eyebrow="A LAP, SECTION BY SECTION"
@@ -589,51 +660,6 @@ export function BestLapPanels({
           </p>
         )}
       </Panel>
-      <div className="equal-grid">
-        <Panel
-          title="Best sectors"
-          eyebrow="SESSION SUMMARY · THEORETICAL BEST"
-        >
-          <Chart
-            option={sectorOption}
-            theme={theme}
-            label="Best sector times for selected drivers"
-          />
-          <p className="footnote">
-            Each driver’s best valid sector; these can come from different laps.
-          </p>
-        </Panel>
-        <Panel title="Team speed range" eyebrow="ON EACH TEAM’S FASTEST LAP">
-          <div className="speed-table">
-            <div className="speed-head">
-              <span>Team</span>
-              <span>Min / Max · km/h</span>
-            </div>
-            {teamSpeeds.map(([team, s]) => (
-              <div className="speed-row" key={team}>
-                <span>
-                  <i
-                    className="driver-dot"
-                    style={{ background: color(data.drivers, s.driver) }}
-                  />
-                  {team}
-                </span>
-                <strong className="mono">
-                  <span className="muted">{s.min.toFixed(0)}</span> /{" "}
-                  {s.max.toFixed(0)}
-                </strong>
-                <div
-                  className="speed-bar"
-                  style={{
-                    width: `${(s.max / 380) * 100}%`,
-                    background: color(data.drivers, s.driver),
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-        </Panel>
-      </div>
       {!!advanced.slots.length && (
         <Panel title="Selected lap sectors" eyebrow="ACTUAL COMPARISON LAPS">
           <Chart
@@ -651,7 +677,7 @@ export function BestLapPanels({
                 type: "bar",
                 data: r.lap?.sectors || [null, null, null],
                 itemStyle: {
-                  color: color(data.drivers, r.lap?.driver || ""),
+                  color: comparisonColor(i),
                   decal:
                     i % 2
                       ? {

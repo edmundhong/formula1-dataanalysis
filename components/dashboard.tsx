@@ -36,7 +36,7 @@ import type {
 import {
   BestLapPanels,
   PacePanels,
-  WeatherPanel,
+  SessionSummary,
   type PaceOptions,
 } from "./panels";
 
@@ -656,6 +656,14 @@ export default function Dashboard() {
                 usable.
               </div>
             )}
+            <SessionSummary
+              data={currentData}
+              selected={mode === "best" && advanced.slots.length
+                ? [...new Set(advanced.slots.map((slot) => slot.driver))]
+                : selected}
+              phase={phase}
+              theme={theme}
+            />
             {mode === "best" ? (
               <>
                 <LapSelection
@@ -697,7 +705,6 @@ export default function Dashboard() {
                 />
               </>
             )}
-            <WeatherPanel data={currentData} theme={theme} />
           </div>
         )}
         <footer>
