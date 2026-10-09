@@ -215,7 +215,7 @@ function TrackMap({ traces, drivers, corners }: { traces: Trace[]; drivers: Driv
                 style={{ background: color(drivers, t.driver) }}
               />
               <strong>{t.driver}</strong>
-              <span className="mono">{percentage.toFixed(1)}%</span>
+              <span className="mono">{percentage.toFixed(0)}%</span>
             </div>
           );
         })}
@@ -226,7 +226,7 @@ function TrackMap({ traces, drivers, corners }: { traces: Trace[]; drivers: Driv
             {sections
               .filter((s) => !s.winner)
               .reduce((n, s) => n + ((s.end - s.start) / 999) * 100, 0)
-              .toFixed(1)}
+              .toFixed(0)}
             %
           </span>
         </div>
