@@ -77,7 +77,11 @@ export function useLapTelemetry(
     loaded.identity === identity && loaded.fileKey === fileKey
       ? loaded
       : { done: false, traces: [], errors: {} as Record<string, string> };
-  const rows = laps.map((lap, index) => {
+  const rows = useMemo(() => {
+    const current = loaded.identity === identity && loaded.fileKey === fileKey
+      ? loaded
+      : { done: false, traces: [], errors: {} as Record<string, string> };
+    return laps.map((lap, index) => {
     const manifest = lap ? telemetryFile(data, lap) : undefined;
     const trace = lap
       ? embeddedTrace(data, lap) ||
@@ -107,7 +111,8 @@ export function useLapTelemetry(
                 : "Loading telemetry…")
             : manifest?.reason || "Telemetry unavailable in this artifact",
     };
-  });
+    });
+  }, [laps, data, loaded, identity, fileKey]);
   return {
     rows,
     retry: () => setRetry((n) => n + 1),

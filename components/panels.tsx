@@ -22,6 +22,7 @@ import type {
 import { advancedPaceLaps } from "@/lib/advanced";
 import { useLapTelemetry } from "./use-lap-telemetry";
 import { cornerMarkers } from "@/lib/corners";
+import { trackPosition } from "@/lib/track-position";
 const comparisonColors = ["#479eff", "#f59e0b", "#c084fc", "#10b981"];
 const comparisonColor = (index: number) => comparisonColors[index % comparisonColors.length];
 const traceColor = (t: Trace, traces: Trace[]) => comparisonColor(t.comparison_id?.startsWith("slot-") ? Number(t.comparison_id.slice(5)) : traces.indexOf(t));
@@ -91,10 +92,14 @@ function TrackMap({
   traces,
   drivers,
   corners,
+  distance,
+  reference,
 }: {
   traces: Trace[];
   drivers: Driver[];
   corners?: Analysis["corners"];
+  distance: number | null;
+  reference?: Trace;
 }) {
   const sections = useMemo(() => dominance(traces), [traces]);
   const [hover, setHover] = useState<number | null>(null);
@@ -118,7 +123,11 @@ function TrackMap({
     50 + (v - xmin) * scale + (600 - (xmax - xmin) * scale) / 2;
   const y = (v: number) => 330 - (v - ymin) * scale;
   const markers = cornerMarkers(corners, x, y);
-  const current = hover == null ? null : sections[hover];
+  const position = trackPosition(ref, reference?.distance ?? ref.distance, distance);
+  const activeSection = hover ?? (position
+    ? sections.find((section) => position.index >= section.start && position.index <= section.end)?.index
+    : null);
+  const current = activeSection == null ? null : sections[activeSection];
   const stroke = (driver: string) => {
     const index = traces.findIndex((t) => traceId(t) === driver);
     return index > 0
@@ -166,7 +175,7 @@ function TrackMap({
               stroke={
                 s.winner ? stroke(s.winner) : s.tied ? "#acb3bf" : "#4e5563"
               }
-              strokeWidth={hover === s.index ? 11 : 7}
+              strokeWidth={activeSection === s.index ? 11 : 7}
               strokeLinecap="round"
               strokeLinejoin="round"
               tabIndex={0}
@@ -237,11 +246,17 @@ function TrackMap({
               </g>
             ))}
           </g>
+          {position && (
+            <g pointerEvents="none" aria-label={`Telemetry position: ${Math.round(distance!)} metres`}>
+              <circle cx={x(position.x)} cy={y(position.y)} r="15" fill="#fff" fillOpacity="0.22" />
+              <circle cx={x(position.x)} cy={y(position.y)} r="8" fill="#fff" stroke="#111827" strokeWidth="3" />
+            </g>
+          )}
         </svg>
         <div className="track-caption">
           {current ? (
             <>
-              <strong>Section {current.index + 1}</strong>
+              <strong>Section {current.index + 1}{position && ` · ${Math.round(distance!).toLocaleString()} m`}</strong>
               <span>
                 {current.times.length
                   ? current.times
@@ -256,7 +271,7 @@ function TrackMap({
           ) : (
             <>
               <strong>Where the time is made</strong>
-              <span>Hover or focus a section to compare traversal times</span>
+              <span>Hover telemetry to locate your position, or a track section to compare times</span>
             </>
           )}
         </div>
@@ -517,15 +532,16 @@ export function BestLapPanels({
     () => selectedTraces(data, selected, phase),
     [data, selected, phase],
   );
-  const traces = advanced.slots.length
+  const traces = useMemo(() => advanced.slots.length
     ? lapTelemetry.rows.flatMap((r) => (r.trace ? [r.trace] : []))
-    : defaultTraces;
+    : defaultTraces, [advanced.slots.length, lapTelemetry.rows, defaultTraces]);
   const reference = advanced.slots.length
     ? lapTelemetry.rows[advanced.reference]?.trace
     : traces[0];
   const [channel, setChannel] = useState<
     "speed" | "throttle" | "brake" | "gear" | "rpm"
   >("speed");
+  const [distance, setDistance] = useState<number | null>(null);
   const units = {
     speed: "km/h",
     throttle: "%",
@@ -600,6 +616,8 @@ export function BestLapPanels({
               traces={traces}
               drivers={data.drivers}
               corners={data.corners}
+              distance={distance}
+              reference={reference}
             />
           )}
         </Panel>
@@ -646,6 +664,7 @@ export function BestLapPanels({
               option={telemetry}
               theme={theme}
               group="telemetry"
+              onDistanceHover={setDistance}
               label={`${channel} versus distance for selected drivers`}
             />
             <div className="subchart-title">
@@ -662,6 +681,7 @@ export function BestLapPanels({
                 theme={theme}
                 height={200}
                 group="telemetry"
+                onDistanceHover={setDistance}
                 label="Estimated cumulative lap-time difference"
               />
             ) : (

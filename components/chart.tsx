@@ -37,14 +37,18 @@ export default function Chart({
   height = 290,
   group,
   label,
+  onDistanceHover,
 }: {
   option: object;
   theme: string;
   height?: number;
   group?: string;
   label: string;
+  onDistanceHover?: (distance: number | null) => void;
 }) {
   const node = useRef<HTMLDivElement>(null);
+  const hoverCallback = useRef(onDistanceHover);
+  useEffect(() => { hoverCallback.current = onDistanceHover; }, [onDistanceHover]);
   useEffect(() => {
     if (!node.current) return;
     const dark = theme === "dark";
@@ -90,6 +94,13 @@ export default function Chart({
     });
     // Merge axis overrides into the defaults, preserving scale and theme styling.
     chart.setOption(option as EChartsOption);
+    chart.on("updateAxisPointer", (event: unknown) => {
+      const axis = (event as { axesInfo?: { axisDim: string; value: number }[] })
+        .axesInfo?.find((axis) => axis.axisDim === "x");
+      hoverCallback.current?.(axis && Number.isFinite(axis.value) ? axis.value : null);
+    });
+    const clearHover = () => hoverCallback.current?.(null);
+    chart.getZr().on("globalout", clearHover);
     if (group) {
       chart.group = group;
       echarts.connect(group);
@@ -98,6 +109,7 @@ export default function Chart({
     observer.observe(node.current);
     return () => {
       observer.disconnect();
+      clearHover();
       chart.dispose();
     };
   }, [option, theme, group]);
