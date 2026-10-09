@@ -1,6 +1,6 @@
 "use client";
 import dynamic from "next/dynamic";
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Activity, ArrowUpRight, Info, Wind } from "lucide-react";
 import {
   bestLaps,
@@ -305,6 +305,25 @@ export function SessionSummary({ data, selected, phase, theme }: {
   data: Analysis; selected: string[]; phase: string; theme: string;
 }) {
   const [view, setView] = useState("fastest");
+  const summaryTabsRef = useRef<HTMLDivElement>(null);
+  const [highlight, setHighlight] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+
+  useLayoutEffect(() => {
+    const tabs = summaryTabsRef.current;
+    if (!tabs) return;
+    const updateHighlight = () => {
+      const active = tabs.querySelector<HTMLButtonElement>('button[aria-pressed="true"]');
+      if (!active) return;
+      const next = { x: active.offsetLeft, y: active.offsetTop, width: active.offsetWidth, height: active.offsetHeight };
+      setHighlight((previous) => previous && Object.keys(next).every((key) => previous[key as keyof typeof next] === next[key as keyof typeof next]) ? previous : next);
+    };
+    updateHighlight();
+    const observer = new ResizeObserver(updateHighlight);
+    observer.observe(tabs);
+    tabs.querySelectorAll("button").forEach((button) => observer.observe(button));
+    return () => observer.disconnect();
+  }, [view]);
+
   const best = useMemo(() => bestLaps(data.laps, phase), [data, phase]);
   const sectorOption = useMemo(
     () => ({
@@ -361,7 +380,8 @@ export function SessionSummary({ data, selected, phase, theme }: {
       <div className="summary-heading">
         <span className="eyebrow">SESSION OVERVIEW</span>
         <p className="footnote">Lap choices and pace filters do not change session benchmarks. Fastest laps, best sectors and team speeds follow the session phase; best sectors follows the comparison drivers. Track conditions covers the full session.</p>
-        <div className="mini-tabs summary-pills" aria-label="Session summary views">
+        <div ref={summaryTabsRef} className={`mini-tabs summary-pills${highlight ? " has-highlight" : ""}`} aria-label="Session summary views">
+          {highlight && <span aria-hidden="true" className="summary-pill-highlight" style={{ transform: `translate(${highlight.x}px, ${highlight.y}px)`, width: highlight.width, height: highlight.height }} />}
           {[["fastest", "Fastest laps"], ["sectors", "Best sectors"], ["speed", "Team speed range"], ["weather", "Track conditions"]].map(([id, label]) => (
             <button key={id} type="button" aria-pressed={view === id} aria-controls="session-summary-content" className={view === id ? "active" : ""} onClick={() => setView(id)}>{label}</button>
           ))}
