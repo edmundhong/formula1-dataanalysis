@@ -12,6 +12,7 @@ import {
   selectedTraces,
 } from "@/lib/analysis";
 import type { Analysis, Driver, Lap, Session, Trace } from "@/lib/types";
+import { cornerMarkers } from "@/lib/corners";
 const Chart = dynamic(() => import("./chart"), {
   ssr: false,
   loading: () => <div className="chart-skeleton" />,
@@ -69,7 +70,7 @@ export function Panel({
   );
 }
 
-function TrackMap({ traces, drivers }: { traces: Trace[]; drivers: Driver[] }) {
+function TrackMap({ traces, drivers, corners }: { traces: Trace[]; drivers: Driver[]; corners?: Analysis["corners"] }) {
   const sections = useMemo(() => dominance(traces), [traces]);
   const [hover, setHover] = useState<number | null>(null);
   const ref = traces[0];
@@ -91,6 +92,7 @@ function TrackMap({ traces, drivers }: { traces: Trace[]; drivers: Driver[] }) {
   const x = (v: number) =>
     50 + (v - xmin) * scale + (600 - (xmax - xmin) * scale) / 2;
   const y = (v: number) => 330 - (v - ymin) * scale;
+  const markers = cornerMarkers(corners, x, y);
   const current = hover == null ? null : sections[hover];
   const stroke = (driver: string) => {
     const index = traces.findIndex((t) => t.driver === driver);
@@ -112,7 +114,7 @@ function TrackMap({ traces, drivers }: { traces: Trace[]; drivers: Driver[] }) {
         <svg
           viewBox="0 0 700 380"
           role="img"
-          aria-label="Circuit map coloured by fastest driver through each section"
+          aria-label={`Circuit map coloured by fastest driver through each section${markers.length ? ", with numbered corners" : ""}`}
         >
           <defs>
             {traces.map((t, i) => (
@@ -170,6 +172,16 @@ function TrackMap({ traces, drivers }: { traces: Trace[]; drivers: Driver[] }) {
               </text>
             </g>
           )}
+          <g pointerEvents="none">
+            {markers.map(marker => (
+              <g key={marker.label} role="img" aria-label={`Turn ${marker.label}`}>
+                <title>{`Turn ${marker.label}`}</title>
+                <line x1={marker.anchorX} y1={marker.anchorY} x2={marker.x} y2={marker.y} stroke="#8993a3" strokeWidth="1" />
+                <circle cx={marker.x} cy={marker.y} r={marker.radius} fill="#080f1e" stroke="#8993a3" strokeWidth="1" />
+                <text x={marker.x} y={marker.y} textAnchor="middle" dominantBaseline="central" fill="#fff" fontSize="11" fontWeight="600">{marker.label}</text>
+              </g>
+            ))}
+          </g>
         </svg>
         <div className="track-caption">
           {current ? (
@@ -419,7 +431,7 @@ export function BestLapPanels({
             </span>
           }
         >
-          <TrackMap traces={traces} drivers={data.drivers} />
+          <TrackMap traces={traces} drivers={data.drivers} corners={data.corners} />
         </Panel>
       </div>
       <Panel

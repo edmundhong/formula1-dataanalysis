@@ -78,6 +78,30 @@ def discover(year):
     return sessions
 
 
+def circuit_corners(session):
+    """Optional visualization metadata; source failures must not fail analysis."""
+    try:
+        info = session.get_circuit_info()
+        if info is None:
+            return []
+        corners = []
+        for _, row in info.corners.iterrows():
+            try:
+                x, y, num = float(row.X), float(row.Y), float(row.Number)
+                if not all(np.isfinite(v) for v in (x, y, num)) or num <= 0 or not num.is_integer():
+                    continue
+                angle = float(row.get("Angle", 0))
+                letter = row.get("Letter", "")
+                corners.append({"number": int(num), "letter": "" if pd.isna(letter) else str(letter),
+                                "x": x, "y": y, "angle": angle if np.isfinite(angle) else 0})
+            except (TypeError, ValueError, AttributeError):
+                continue
+        return corners
+    except Exception as exc:
+        LOG.warning("Corner metadata unavailable: %s", type(exc).__name__)
+        return []
+
+
 def prepare(meta, refresh=False):
     session = fastf1.get_session(meta["year"], meta["round"], meta["code"])
     LOG.info("Source session path: %s", session.api_path)
@@ -169,6 +193,7 @@ def prepare(meta, refresh=False):
     return {"schema_version": 1, "session_id": meta["id"], "generated_at": utcnow(),
             "provenance": {"source": "FastF1", "fastf1_version": fastf1.__version__, "pipeline_version": 2, "units": {"time": "s", "distance": "m", "speed": "km/h", "temperature": "°C"}},
             "drivers": drivers, "laps": laps, "traces": traces, "weather": weather,
+            "corners": circuit_corners(session),
             "pit_stops": pit_durations(laps) if meta["code"] in ("R", "S") else [], "phases": phases, "unavailable": unavailable}
 
 

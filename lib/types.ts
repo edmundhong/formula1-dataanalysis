@@ -73,7 +73,15 @@ export interface Weather {
   wind_direction: number | null;
   rain: boolean;
 }
+export interface Corner {
+  number: number;
+  letter: string;
+  x: number;
+  y: number;
+  angle: number;
+}
 export interface Analysis {
+  corners?: Corner[];
   schema_version: 1;
   session_id: string;
   generated_at: string;
