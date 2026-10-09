@@ -1,12 +1,12 @@
 """Run `python -m pipeline.ingest --limit 3`; credentials come from environment."""
 import argparse
 from datetime import datetime, timezone
-import hashlib
 import json
 import logging
 import os
 from pathlib import Path
 import time
+import tempfile
 
 import fastf1
 from fastf1 import plotting
@@ -16,6 +16,7 @@ import requests
 
 from .analysis import fastest_laps, mark_clean_laps, pit_durations, resample_trace
 from .scheduler import due, correction_stage, parse
+from .telemetry import TelemetryWriter, version_artifact
 
 LOG = logging.getLogger("f1.ingest")
 CODES = {"Practice 1": "FP1", "Practice 2": "FP2", "Practice 3": "FP3", "Qualifying": "Q", "Sprint Qualifying": "SQ", "Sprint Shootout": "SQ", "Sprint": "S", "Race": "R"}
@@ -102,7 +103,7 @@ def circuit_corners(session):
         return []
 
 
-def prepare(meta, refresh=False):
+def prepare(meta, refresh=False, telemetry_dir=None):
     session = fastf1.get_session(meta["year"], meta["round"], meta["code"])
     LOG.info("Source session path: %s", session.api_path)
     if refresh:
@@ -167,18 +168,30 @@ def prepare(meta, refresh=False):
     phases = ["ALL"] + [p for p in ("Q1", "Q2", "Q3") if p in phase_by_index.values()]
     traces, unavailable = [], []
     trace_cache = {}
+    def read_trace(lap):
+        key = (lap["driver"], lap["number"])
+        if key in trace_cache:
+            return trace_cache[key]
+        if lap["time"] is None or lap["time"] <= 0:
+            return None
+        try:
+            row = raw_by_key[key]
+            # get_telemetry also calculates DriverAhead across the field. None of
+            # our channels use it; avoid that work for every lap in a full session.
+            car = row.get_car_data(pad=1, pad_side="both").add_distance()
+            pos = row.get_pos_data(pad=1, pad_side="both")
+            tel = pos.merge_channels(car, frequency="original").slice_by_lap(row, interpolate_edges=True)
+            fields = {"speed": "Speed", "throttle": "Throttle", "brake": "Brake", "gear": "nGear", "rpm": "RPM", "x": "X", "y": "Y"}
+            channels = {k: pd.to_numeric(tel[v], errors="coerce").astype(float).to_numpy() if v in tel else np.full(len(tel), np.nan) for k, v in fields.items()}
+            return resample_trace(tel.Distance, tel.Time.dt.total_seconds(), channels, lap["time"], lap["sectors"])
+        except Exception as exc:
+            LOG.warning("Telemetry unavailable %s lap %s: %s", *key, type(exc).__name__)
+            return None
     for phase in phases:
         for lap in fastest_laps(laps, phase):
             key = (lap["driver"], lap["number"])
             if key not in trace_cache:
-                try:
-                    tel = raw_by_key[key].get_telemetry()
-                    fields = {"speed": "Speed", "throttle": "Throttle", "brake": "Brake", "gear": "nGear", "rpm": "RPM", "x": "X", "y": "Y"}
-                    channels = {k: pd.to_numeric(tel[v], errors="coerce").astype(float).to_numpy() if v in tel else np.full(len(tel), np.nan) for k, v in fields.items()}
-                    trace_cache[key] = resample_trace(tel.Distance, tel.Time.dt.total_seconds(), channels, lap["time"], lap["sectors"])
-                except Exception as exc:
-                    LOG.warning("Telemetry unavailable %s lap %s: %s", *key, type(exc).__name__)
-                    trace_cache[key] = None
+                trace_cache[key] = read_trace(lap)
             if trace_cache[key]:
                 traces.append({**trace_cache[key], "driver": lap["driver"], "lap": lap["number"], "phase": phase, "lap_time": lap["time"]})
     if len({t["driver"] for t in traces}) < len(fastest_laps(laps)):
@@ -190,11 +203,20 @@ def prepare(meta, refresh=False):
                         "wind_speed": number(row.WindSpeed), "wind_direction": number(row.WindDirection), "rain": flag(row.Rainfall)})
     if not weather:
         unavailable.append("Weather data is unavailable.")
-    return {"schema_version": 1, "session_id": meta["id"], "generated_at": utcnow(),
-            "provenance": {"source": "FastF1", "fastf1_version": fastf1.__version__, "pipeline_version": 2, "units": {"time": "s", "distance": "m", "speed": "km/h", "temperature": "°C"}},
+    manifest = None
+    if telemetry_dir is not None:
+        writer = TelemetryWriter(telemetry_dir, meta["id"])
+        for lap in laps:
+            writer.add(lap, read_trace(lap), "Lap timing unavailable." if lap["time"] is None else None)
+        manifest = writer.finish()
+    artifact = {"schema_version": 1, "session_id": meta["id"], "generated_at": utcnow(),
+            "provenance": {"source": "FastF1", "fastf1_version": fastf1.__version__, "pipeline_version": 3, "units": {"time": "s", "distance": "m", "speed": "km/h", "temperature": "°C"}},
             "drivers": drivers, "laps": laps, "traces": traces, "weather": weather,
             "corners": circuit_corners(session),
             "pit_stops": pit_durations(laps) if meta["code"] in ("R", "S") else [], "phases": phases, "unavailable": unavailable}
+    if manifest is not None:
+        artifact["telemetry_manifest"] = manifest
+    return artifact
 
 
 def prune_cache(folder, max_bytes=1_000_000_000):
@@ -223,7 +245,9 @@ def main():
         year, rnd, code = args.session.split("-")
         if int(year) != 2026:
             raise ValueError("Only the 2026 season is supported")
-        analysis = prepare({"year": int(year), "round": int(rnd), "code": code, "id": args.session}, args.force)
+        folder = Path(f".local/{args.session}-telemetry")
+        analysis = prepare({"year": int(year), "round": int(rnd), "code": code, "id": args.session}, args.force, telemetry_dir=folder)
+        version_artifact(analysis, folder)
         Path(".local").mkdir(exist_ok=True)
         Path(f".local/{args.session}.json").write_text(json.dumps(analysis, allow_nan=False, separators=(",", ":")), encoding="utf-8")
         return
@@ -242,11 +266,12 @@ def main():
     for meta in candidates[:max(1, min(args.limit, 10))]:
         LOG.info("Preparing %s", meta["id"])
         try:
-            artifact = prepare(meta, refresh=bool(meta.get("last_checked_at")))
-            # Timestamp is excluded from the content hash, allowing repeat-safe publication.
-            canonical = {k: v for k, v in artifact.items() if k != "generated_at"}
-            digest = hashlib.sha256(json.dumps(canonical, sort_keys=True, allow_nan=False, separators=(",", ":")).encode()).hexdigest()[:20]
-            request("publish", session_id=meta["id"], version=digest, artifact=artifact, correction_stage=correction_stage(meta, now))
+            with tempfile.TemporaryDirectory(prefix="f1-telemetry-") as folder:
+                artifact = prepare(meta, refresh=bool(meta.get("last_checked_at")), telemetry_dir=folder)
+                digest = version_artifact(artifact, folder)
+                for chunk in artifact["telemetry_manifest"]["chunks"]:
+                    request("telemetry", session_id=meta["id"], version=digest, file=chunk["file"], sha256=chunk["sha256"], chunk_json=(Path(folder) / chunk["file"]).read_text(encoding="utf-8"))
+                request("publish", session_id=meta["id"], version=digest, artifact=artifact, correction_stage=correction_stage(meta, now))
         except Exception as exc:
             failures += 1
             LOG.exception("Session %s was not updated", meta["id"])

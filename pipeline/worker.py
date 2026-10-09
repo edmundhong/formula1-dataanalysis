@@ -26,18 +26,19 @@ def authorized(headers):
             and hmac.compare_digest(headers.get("Authorization", ""), "Bearer " + token))
 
 
-def publish(job, artifact):
+def publish(job, artifact, action="publish", timeout=25):
     request = Request(os.environ["F1_INGEST_URL"], json.dumps({
-        "action": "publish", "session_id": job["session"]["id"],
+        "action": action, "session_id": job["session"]["id"],
         "lease_token": job["lease_token"], **artifact,
     }, allow_nan=False).encode(), {
         "Content-Type": "application/json", "x-ingest-token": os.environ["F1_INGEST_TOKEN"],
     })
-    with urlopen(request, timeout=25) as response:
+    with urlopen(request, timeout=timeout) as response:
         return json.load(response)
 
 
 def run_job():
+    function_deadline = time.monotonic() + 285
     job = rpc("claim_analysis")
     if not job:
         return {"state": "idle"}
@@ -81,7 +82,16 @@ def run_job():
                 raise RuntimeError("Lease lost")
             category = "publication_failed"
             artifact = json.loads(Path(folder, "artifact.json").read_text(encoding="utf-8"))
-            publish(job, artifact)
+            # Keep publication within the Vercel function's 300-second ceiling.
+            publication_deadline = function_deadline
+            for chunk in artifact["artifact"].get("telemetry_manifest", {}).get("chunks", []):
+                if time.monotonic() + 25 >= publication_deadline or not rpc("heartbeat_analysis", identity):
+                    raise RuntimeError("Publication deadline or lease lost")
+                publish(job, {"version": artifact["version"], "file": chunk["file"], "sha256": chunk["sha256"],
+                    "chunk_json": Path(folder, chunk["file"]).read_text(encoding="utf-8")}, action="telemetry", timeout=min(25, max(1, publication_deadline - time.monotonic())))
+            if time.monotonic() >= publication_deadline or not rpc("heartbeat_analysis", identity):
+                raise RuntimeError("Publication deadline or lease lost")
+            publish(job, artifact, timeout=min(25, max(1, publication_deadline - time.monotonic())))
             return {"state": "succeeded"}
     except Exception:
         # No exception text, response bodies or credentials are logged or returned.
@@ -90,18 +100,17 @@ def run_job():
 
 
 def analyze(folder):
-    import hashlib
     import fastf1
     from .ingest import prepare
     from .scheduler import correction_stage
+    from .telemetry import version_artifact
     folder = Path(folder)
     cache = folder / "cache"
     cache.mkdir()
     fastf1.Cache.enable_cache(str(cache))
     meta = json.loads((folder / "session.json").read_text(encoding="utf-8"))
-    artifact = prepare(meta, refresh=True)
-    canonical = {k: v for k, v in artifact.items() if k != "generated_at"}
-    version = hashlib.sha256(json.dumps(canonical, sort_keys=True, allow_nan=False, separators=(",", ":")).encode()).hexdigest()[:20]
+    artifact = prepare(meta, refresh=True, telemetry_dir=folder)
+    version = version_artifact(artifact, folder)
     (folder / "artifact.json").write_text(json.dumps({"artifact": artifact, "version": version,
         "correction_stage": correction_stage(meta)}, allow_nan=False), encoding="utf-8")
 

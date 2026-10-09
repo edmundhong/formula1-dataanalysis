@@ -17,8 +17,22 @@ import {
 } from "lucide-react";
 import { configured, loadAnalysis, loadCatalog } from "@/lib/data";
 import { bestLaps, formatTime } from "@/lib/analysis";
+import {
+  emptyAdvanced,
+  lapFlags,
+  parseAdvanced,
+  phaseLabel,
+  validateAdvanced,
+} from "@/lib/advanced";
+import { LapSelection, PaceSelection } from "./advanced-selection";
 import { completedSession } from "@/lib/jobs";
-import type { Analysis, Session, Status } from "@/lib/types";
+import type {
+  AdvancedSelection,
+  Analysis,
+  Lap,
+  Session,
+  Status,
+} from "@/lib/types";
 import {
   BestLapPanels,
   PacePanels,
@@ -35,6 +49,8 @@ const statuses: Record<Status, string> = {
   cancelled: "Cancelled",
 };
 export default function Dashboard() {
+  const [advanced, setAdvanced] = useState<AdvancedSelection>(emptyAdvanced);
+  const pendingAdvanced = useRef<unknown>(null);
   const [catalog, setCatalog] = useState<Session[]>([]),
     [sessionId, setSessionId] = useState("");
   const [mode, setMode] = useState("best"),
@@ -68,6 +84,7 @@ export default function Dashboard() {
       .filter(Boolean)
       .slice(0, 4);
     pendingPhase.current = query.get("phase") || "ALL";
+    pendingAdvanced.current = parseAdvanced(query.get("advanced"));
     setPaceOptions({
       clean: query.get("clean") !== "all",
       compound: query.get("compound") || "ALL",
@@ -145,6 +162,12 @@ export default function Dashboard() {
         setError("");
         const changed = lastSession.current !== result.session_id;
         const firstLoad = initial.current;
+        setAdvanced((current) =>
+          validateAdvanced(
+            firstLoad ? pendingAdvanced.current : changed ? null : current,
+            result,
+          ),
+        );
         if (changed && !firstLoad)
           setPaceOptions({
             clean: true,
@@ -201,8 +224,10 @@ export default function Dashboard() {
     if (paceOptions.from !== 1) params.set("from", String(paceOptions.from));
     if (paceOptions.to !== 999) params.set("to", String(paceOptions.to));
     if (!paceOptions.clean) params.set("clean", "all");
+    if (advanced.slots.length || advanced.paceActive)
+      params.set("advanced", JSON.stringify(advanced));
     history.replaceState(null, "", `${window.location.pathname}?${params}`);
-  }, [sessionId, mode, phase, selected, data, paceOptions]);
+  }, [sessionId, mode, phase, selected, data, paceOptions, advanced]);
   const years = [...new Set(catalog.map((s) => s.year))].sort((a, b) => b - a);
   const year = session?.year || years[0] || 2026;
   const events = [
@@ -240,6 +265,43 @@ export default function Dashboard() {
           ? [...current, code]
           : current,
     );
+  useEffect(() => {
+    if (!advanced.paceActive) return;
+    const missing = selected.filter((d) => !advanced.pace[d]);
+    if (missing.length)
+      setAdvanced((current) => ({
+        ...current,
+        pace: {
+          ...current.pace,
+          ...Object.fromEntries(
+            missing.map((d) => [d, { ...paceOptions, excluded: [] }]),
+          ),
+        },
+      }));
+  }, [selected, advanced.paceActive, advanced.pace, paceOptions]);
+  const compareLap = (lap: Lap) => {
+    setAdvanced((current) => {
+      const slots = current.slots.length
+        ? [...current.slots]
+        : selected
+            .filter((d) => d !== lap.driver)
+            .slice(0, 1)
+            .map((driver) => ({
+              driver,
+              phase: "ALL",
+              lap: "fastest" as const,
+            }));
+      const slot = { driver: lap.driver, phase: lap.phase, lap: lap.number };
+      if (slots.length < 4) slots.push(slot);
+      else slots[3] = slot;
+      return {
+        ...current,
+        slots,
+        flagged: current.flagged || Boolean(lapFlags(lap)),
+      };
+    });
+    setMode("best");
+  };
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -383,7 +445,13 @@ export default function Dashboard() {
             </button>
           </div>
         </section>
-        {session && session.status !== "cancelled" && <AnalysisJob key={session.id} session={session} onPublished={refreshPublished} />}
+        {session && session.status !== "cancelled" && (
+          <AnalysisJob
+            key={session.id}
+            session={session}
+            onPublished={refreshPublished}
+          />
+        )}
         <div className="view-bar">
           <div className="view-tabs" role="tablist" aria-label="Analysis view">
             <button
@@ -427,7 +495,11 @@ export default function Dashboard() {
           </div>
         ) : !currentData ? (
           <div className="waiting-state">
-            {session && completedSession(session) ? <Timer size={32} /> : <Flag size={32} />}
+            {session && completedSession(session) ? (
+              <Timer size={32} />
+            ) : (
+              <Flag size={32} />
+            )}
             <span className="eyebrow">
               {session && completedSession(session)
                 ? "PULLING FASTF1 DATA"
@@ -441,19 +513,24 @@ export default function Dashboard() {
                 : session && completedSession(session)
                   ? `Preparing ${session.name} stats`
                   : session
-                  ? `${session.name} analysis is not available yet`
-                  : configured
-                    ? "The first sessions are being prepared"
-                    : "The data connection is being set up"}
+                    ? `${session.name} analysis is not available yet`
+                    : configured
+                      ? "The first sessions are being prepared"
+                      : "The data connection is being set up"}
             </h2>
             <p>
               {session && completedSession(session)
                 ? `We’re pulling ${session.event} timing and telemetry from FastF1. This page will update automatically when it is ready.`
                 : session
-                ? `${session.event} · ${new Date(session.starts_at).toLocaleString()}`
-                : "The calendar will appear as soon as the first ingestion completes."}
+                  ? `${session.event} · ${new Date(session.starts_at).toLocaleString()}`
+                  : "The calendar will appear as soon as the first ingestion completes."}
             </p>
-            {!session || !completedSession(session) ? <p>Completed sessions are pulled from FastF1 automatically and the stats will appear here when the analysis is ready.</p> : null}
+            {!session || !completedSession(session) ? (
+              <p>
+                Completed sessions are pulled from FastF1 automatically and the
+                stats will appear here when the analysis is ready.
+              </p>
+            ) : null}
           </div>
         ) : (
           <div id="analysis-content" role="tabpanel">
@@ -479,7 +556,7 @@ export default function Dashboard() {
                   >
                     {currentData.phases.map((p) => (
                       <option key={p} value={p}>
-                        {p === "ALL" ? "Whole session" : p}
+                        {phaseLabel(p, session?.code || "Q")}
                       </option>
                     ))}
                   </select>
@@ -580,22 +657,45 @@ export default function Dashboard() {
               </div>
             )}
             {mode === "best" ? (
-              <BestLapPanels
-                data={currentData}
-                selected={selected}
-                phase={phase}
-                theme={theme}
-              />
+              <>
+                <LapSelection
+                  data={currentData}
+                  code={session?.code || ""}
+                  selected={selected}
+                  phase={phase}
+                  value={advanced}
+                  onChange={setAdvanced}
+                />
+                <BestLapPanels
+                  data={currentData}
+                  selected={selected}
+                  phase={phase}
+                  theme={theme}
+                  session={session!}
+                  advanced={advanced}
+                />
+              </>
             ) : (
-              <PacePanels
-                key={currentData.session_id}
-                data={currentData}
-                session={session!}
-                selected={selected}
-                theme={theme}
-                filters={paceOptions}
-                onFilters={setPaceOptions}
-              />
+              <>
+                <PaceSelection
+                  data={currentData}
+                  selected={selected}
+                  defaults={paceOptions}
+                  value={advanced}
+                  onChange={setAdvanced}
+                  onCompare={compareLap}
+                />
+                <PacePanels
+                  key={currentData.session_id}
+                  data={currentData}
+                  session={session!}
+                  selected={selected}
+                  theme={theme}
+                  filters={paceOptions}
+                  onFilters={setPaceOptions}
+                  advanced={advanced}
+                />
+              </>
             )}
             <WeatherPanel data={currentData} theme={theme} />
           </div>
@@ -630,10 +730,10 @@ function InfoText() {
   return (
     <p>
       This is independent post-session analysis using FastF1 data. Sessions from
-      2026 sessions appear in the calendar. FastF1 source availability and worker
-      capacity can affect publication. Track dominance and telemetry deltas are
-      estimates. Race-pace comparisons do not correct for fuel, traffic, or
-      weather.
+      2026 sessions appear in the calendar. FastF1 source availability and
+      worker capacity can affect publication. Track dominance and telemetry
+      deltas are estimates. Race-pace comparisons do not correct for fuel,
+      traffic, or weather.
     </p>
   );
 }

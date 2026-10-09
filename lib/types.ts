@@ -1,10 +1,5 @@
 export type Status =
-  | "scheduled"
-  | "waiting"
-  | "available"
-  | "partial"
-  | "delayed"
-  | "cancelled";
+  "scheduled" | "waiting" | "available" | "partial" | "delayed" | "cancelled";
 export interface Session {
   id: string;
   year: number;
@@ -47,6 +42,8 @@ export interface Lap {
   clean: boolean;
 }
 export interface Trace {
+  comparison_id?: string;
+  label?: string;
   driver: string;
   phase: string;
   lap: number;
@@ -102,4 +99,35 @@ export interface Analysis {
   pit_stops: { driver: string; lap: number; duration: number }[];
   phases: string[];
   unavailable: string[];
+  telemetry_manifest?: TelemetryManifest;
+}
+
+export interface TelemetryManifest {
+  chunks: { file: string; bytes: number; sha256: string }[];
+  laps: {
+    driver: string;
+    lap: number;
+    chunk: string | null;
+    reason: string | null;
+  }[];
+}
+export interface ComparisonSlot {
+  driver: string;
+  phase: string;
+  lap: number | "fastest";
+}
+export interface DriverPaceSelection {
+  clean: boolean;
+  compound: string;
+  stint: string;
+  from: number;
+  to: number;
+  excluded: number[];
+}
+export interface AdvancedSelection {
+  slots: ComparisonSlot[];
+  reference: number;
+  flagged: boolean;
+  pace: Record<string, DriverPaceSelection>;
+  paceActive: boolean;
 }

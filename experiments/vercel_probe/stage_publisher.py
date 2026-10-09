@@ -17,6 +17,7 @@ def main():
     source = source.replace('Deno.serve(async (req: Request) => {', f'Deno.serve(async (req: Request) => {{\n  if (Date.now() > {int((time.time() + 1800) * 1000)}) return reply({{error: "expired"}}, 404);')
     (function / "index.ts").write_text(source)
     (shared / "policy.ts").write_text((ROOT / "supabase/functions/_shared/policy.ts").read_text())
+    (shared / "telemetry.ts").write_text((ROOT / "supabase/functions/_shared/telemetry.ts").read_text())
     (TARGET / "config.toml").write_text('project_id = "f1-probe"\n[functions.ingest-probe-20260928]\nverify_jwt = false\n')
     print(TARGET.parent)
 

@@ -11,8 +11,19 @@ import {
   paceLaps,
   selectedTraces,
 } from "@/lib/analysis";
-import type { Analysis, Driver, Lap, Session, Trace } from "@/lib/types";
+import type {
+  AdvancedSelection,
+  Analysis,
+  Driver,
+  Lap,
+  Session,
+  Trace,
+} from "@/lib/types";
+import { advancedPaceLaps } from "@/lib/advanced";
+import { useLapTelemetry } from "./use-lap-telemetry";
 import { cornerMarkers } from "@/lib/corners";
+const traceId = (t: Trace) => t.comparison_id ?? t.driver;
+const traceLabel = (t: Trace) => t.label ?? t.driver;
 const Chart = dynamic(() => import("./chart"), {
   ssr: false,
   loading: () => <div className="chart-skeleton" />,
@@ -28,7 +39,10 @@ const line = (
   data,
   showSymbol: false,
   connectNulls: false,
-  lineStyle: { width: 2, type: index % 2 ? "dashed" : "solid" },
+  lineStyle: {
+    width: index % 4 === 3 ? 3 : 2,
+    type: ["solid", "dashed", "dotted", "dashed"][index % 4],
+  },
   itemStyle: { color },
   emphasis: { focus: "series" },
 });
@@ -70,7 +84,15 @@ export function Panel({
   );
 }
 
-function TrackMap({ traces, drivers, corners }: { traces: Trace[]; drivers: Driver[]; corners?: Analysis["corners"] }) {
+function TrackMap({
+  traces,
+  drivers,
+  corners,
+}: {
+  traces: Trace[];
+  drivers: Driver[];
+  corners?: Analysis["corners"];
+}) {
   const sections = useMemo(() => dominance(traces), [traces]);
   const [hover, setHover] = useState<number | null>(null);
   const ref = traces[0];
@@ -95,8 +117,10 @@ function TrackMap({ traces, drivers, corners }: { traces: Trace[]; drivers: Driv
   const markers = cornerMarkers(corners, x, y);
   const current = hover == null ? null : sections[hover];
   const stroke = (driver: string) => {
-    const index = traces.findIndex((t) => t.driver === driver);
-    return index > 0 ? `url(#driver-pattern-${index})` : color(drivers, driver);
+    const index = traces.findIndex((t) => traceId(t) === driver);
+    return index > 0
+      ? `url(#driver-pattern-${index})`
+      : color(drivers, traces[index]?.driver || driver);
   };
   const points = (start: number, end: number) =>
     ref.x
@@ -119,7 +143,7 @@ function TrackMap({ traces, drivers, corners }: { traces: Trace[]; drivers: Driv
           <defs>
             {traces.map((t, i) => (
               <pattern
-                key={t.driver}
+                key={traceId(t)}
                 id={`driver-pattern-${i}`}
                 width={6 + i * 3}
                 height={6 + i * 3}
@@ -147,9 +171,9 @@ function TrackMap({ traces, drivers, corners }: { traces: Trace[]; drivers: Driv
               onBlur={() => setHover(null)}
               onMouseEnter={() => setHover(s.index)}
               onMouseLeave={() => setHover(null)}
-              aria-label={`Section ${s.index + 1}: ${s.winner || (s.tied ? "approximately tied" : "unavailable")}`}
+              aria-label={`Section ${s.index + 1}: ${traces.find((t) => traceId(t) === s.winner)?.label || s.winner || (s.tied ? "approximately tied" : "unavailable")}`}
             >
-              <title>{`Section ${s.index + 1}: ${s.times.map((t) => `${t.driver} ${t.seconds.toFixed(3)}s`).join(", ")}`}</title>
+              <title>{`Section ${s.index + 1}: ${s.times.map((t) => `${traces.find((trace) => traceId(trace) === t.driver)?.label || t.driver} ${t.seconds.toFixed(3)}s`).join(", ")}`}</title>
             </polyline>
           ))}
           {ref.x[0] != null && ref.y[0] != null && (
@@ -173,12 +197,40 @@ function TrackMap({ traces, drivers, corners }: { traces: Trace[]; drivers: Driv
             </g>
           )}
           <g pointerEvents="none">
-            {markers.map(marker => (
-              <g key={marker.label} role="img" aria-label={`Turn ${marker.label}`}>
+            {markers.map((marker) => (
+              <g
+                key={marker.label}
+                role="img"
+                aria-label={`Turn ${marker.label}`}
+              >
                 <title>{`Turn ${marker.label}`}</title>
-                <line x1={marker.anchorX} y1={marker.anchorY} x2={marker.x} y2={marker.y} stroke="#8993a3" strokeWidth="1" />
-                <circle cx={marker.x} cy={marker.y} r={marker.radius} fill="#080f1e" stroke="#8993a3" strokeWidth="1" />
-                <text x={marker.x} y={marker.y} textAnchor="middle" dominantBaseline="central" fill="#fff" fontSize="11" fontWeight="600">{marker.label}</text>
+                <line
+                  x1={marker.anchorX}
+                  y1={marker.anchorY}
+                  x2={marker.x}
+                  y2={marker.y}
+                  stroke="#8993a3"
+                  strokeWidth="1"
+                />
+                <circle
+                  cx={marker.x}
+                  cy={marker.y}
+                  r={marker.radius}
+                  fill="#080f1e"
+                  stroke="#8993a3"
+                  strokeWidth="1"
+                />
+                <text
+                  x={marker.x}
+                  y={marker.y}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  fill="#fff"
+                  fontSize="11"
+                  fontWeight="600"
+                >
+                  {marker.label}
+                </text>
               </g>
             ))}
           </g>
@@ -190,7 +242,10 @@ function TrackMap({ traces, drivers, corners }: { traces: Trace[]; drivers: Driv
               <span>
                 {current.times.length
                   ? current.times
-                      .map((t) => `${t.driver} ${t.seconds.toFixed(3)}s`)
+                      .map(
+                        (t) =>
+                          `${traces.find((trace) => traceId(trace) === t.driver)?.label || t.driver} ${t.seconds.toFixed(3)}s`,
+                      )
                       .join(" · ")
                   : "Insufficient telemetry"}
               </span>
@@ -206,15 +261,15 @@ function TrackMap({ traces, drivers, corners }: { traces: Trace[]; drivers: Driv
       <div className="dominance-legend">
         {traces.map((t) => {
           const percentage = sections
-            .filter((s) => s.winner === t.driver)
+            .filter((s) => s.winner === traceId(t))
             .reduce((n, s) => n + ((s.end - s.start) / 999) * 100, 0);
           return (
-            <div key={t.driver}>
+            <div key={traceId(t)}>
               <span
                 className="driver-dot"
                 style={{ background: color(drivers, t.driver) }}
               />
-              <strong>{t.driver}</strong>
+              <strong>{traceLabel(t)}</strong>
               <span className="mono">{percentage.toFixed(0)}%</span>
             </div>
           );
@@ -235,7 +290,7 @@ function TrackMap({ traces, drivers, corners }: { traces: Trace[]; drivers: Driv
         <Info size={13} />
         FastF1 team colours:{" "}
         {traces
-          .map((t, i) => `${t.driver} ${i ? "striped" : "solid"}`)
+          .map((t, i) => `${traceLabel(t)} ${i ? "striped" : "solid"}`)
           .join(" · ")}
         . Estimated section times; differences below 0.01s are tied.
       </p>
@@ -248,18 +303,28 @@ export function BestLapPanels({
   selected,
   phase,
   theme,
+  session,
+  advanced,
 }: {
   data: Analysis;
   selected: string[];
   phase: string;
   theme: string;
+  session: Session;
+  advanced: AdvancedSelection;
 }) {
   const best = useMemo(() => bestLaps(data.laps, phase), [data, phase]);
-  const traces = useMemo(
+  const lapTelemetry = useLapTelemetry(data, session, advanced.slots);
+  const defaultTraces = useMemo(
     () => selectedTraces(data, selected, phase),
     [data, selected, phase],
   );
-  const reference = traces[0];
+  const traces = advanced.slots.length
+    ? lapTelemetry.rows.flatMap((r) => (r.trace ? [r.trace] : []))
+    : defaultTraces;
+  const reference = advanced.slots.length
+    ? lapTelemetry.rows[advanced.reference]?.trace
+    : traces[0];
   const [channel, setChannel] = useState<
     "speed" | "throttle" | "brake" | "gear" | "rpm"
   >("speed");
@@ -277,7 +342,7 @@ export function BestLapPanels({
       yAxis: { name: units[channel] },
       series: traces.map((t, i) =>
         line(
-          t.driver,
+          traceLabel(t),
           t.distance.map((d, j) => [
             reference?.distance[j] ?? d,
             t[channel][j],
@@ -294,15 +359,19 @@ export function BestLapPanels({
       dataZoom: zoom,
       xAxis: { name: "Lap distance (m)", nameLocation: "middle", nameGap: 29 },
       yAxis: { name: "Gap (s)" },
+      tooltip: {
+        valueFormatter: (value: unknown) =>
+          typeof value === "number" ? value.toFixed(3) : "—",
+      },
       series: traces
         .filter((t) => t.reliable && reference?.reliable)
         .map((t, i) =>
           line(
-            t.driver,
+            traceLabel(t),
             t.distance.map((d, j) => [
-              reference.distance[j] ?? d,
-              t.time[j] != null && reference.time[j] != null
-                ? t.time[j]! - reference.time[j]!
+              reference!.distance[j] ?? d,
+              t.time[j] != null && reference!.time[j] != null
+                ? t.time[j]! - reference!.time[j]!
                 : null,
             ]),
             color(data.drivers, t.driver),
@@ -367,7 +436,7 @@ export function BestLapPanels({
       <div className="analysis-grid">
         <Panel
           title="Fastest laps"
-          eyebrow="THE BENCHMARK"
+          eyebrow="SESSION SUMMARY · THE BENCHMARK"
           aside={<span className="pill">{best.length} drivers</span>}
         >
           <div className="ranking-scroll">
@@ -431,7 +500,17 @@ export function BestLapPanels({
             </span>
           }
         >
-          <TrackMap traces={traces} drivers={data.drivers} corners={data.corners} />
+          {advanced.slots.length && traces.length !== advanced.slots.length ? (
+            <Empty>
+              Track dominance needs reliable telemetry for every selected lap.
+            </Empty>
+          ) : (
+            <TrackMap
+              traces={traces}
+              drivers={data.drivers}
+              corners={data.corners}
+            />
+          )}
         </Panel>
       </div>
       <Panel
@@ -454,6 +533,22 @@ export function BestLapPanels({
           </div>
         }
       >
+        {!!advanced.slots.length && (
+          <div className="telemetry-status" aria-live="polite">
+            {lapTelemetry.rows.map((r, i) => (
+              <p key={i}>
+                Comparison {i + 1}:{" "}
+                {r.lap ? `${r.lap.driver} · Lap ${r.lap.number}` : "No lap"} ·{" "}
+                {r.status}
+              </p>
+            ))}
+            {lapTelemetry.failed && (
+              <button className="text-button" onClick={lapTelemetry.retry}>
+                Retry telemetry
+              </button>
+            )}
+          </div>
+        )}
         {traces.length ? (
           <>
             <Chart
@@ -465,7 +560,9 @@ export function BestLapPanels({
             <div className="subchart-title">
               Cumulative delta{" "}
               <span>
-                Relative to {reference?.driver} · positive means behind
+                Relative to{" "}
+                {reference ? traceLabel(reference) : "unavailable reference"} ·
+                positive means behind
               </span>
             </div>
             {reference?.reliable ? (
@@ -478,8 +575,8 @@ export function BestLapPanels({
               />
             ) : (
               <Empty>
-                Time-delta comparison is unavailable because the timing quality
-                check failed.
+                Time-delta comparison needs available, reliable telemetry for
+                the chosen reference lap.
               </Empty>
             )}
           </>
@@ -493,7 +590,10 @@ export function BestLapPanels({
         )}
       </Panel>
       <div className="equal-grid">
-        <Panel title="Best sectors" eyebrow="ONE SECTOR AT A TIME">
+        <Panel
+          title="Best sectors"
+          eyebrow="SESSION SUMMARY · THEORETICAL BEST"
+        >
           <Chart
             option={sectorOption}
             theme={theme}
@@ -534,6 +634,43 @@ export function BestLapPanels({
           </div>
         </Panel>
       </div>
+      {!!advanced.slots.length && (
+        <Panel title="Selected lap sectors" eyebrow="ACTUAL COMPARISON LAPS">
+          <Chart
+            option={{
+              legend: { top: 0 },
+              xAxis: {
+                type: "category",
+                data: ["Sector 1", "Sector 2", "Sector 3"],
+              },
+              yAxis: { name: "Seconds" },
+              series: lapTelemetry.rows.map((r, i) => ({
+                name: r.lap
+                  ? `${r.lap.driver} · Lap ${r.lap.number}`
+                  : `Comparison ${i + 1} · unavailable`,
+                type: "bar",
+                data: r.lap?.sectors || [null, null, null],
+                itemStyle: {
+                  color: color(data.drivers, r.lap?.driver || ""),
+                  decal:
+                    i % 2
+                      ? {
+                          symbol: "rect",
+                          dashArrayX: [1, 0],
+                          dashArrayY: [2, 3],
+                        }
+                      : undefined,
+                },
+              })),
+            }}
+            theme={theme}
+            label="Actual sector times from selected laps"
+          />
+          <p className="footnote">
+            Each bar uses the selected lap’s recorded sector time.
+          </p>
+        </Panel>
+      )}
     </>
   );
 }
@@ -557,6 +694,7 @@ export function PacePanels({
   theme,
   filters,
   onFilters,
+  advanced,
 }: {
   data: Analysis;
   session: Session;
@@ -564,6 +702,7 @@ export function PacePanels({
   theme: string;
   filters: PaceOptions;
   onFilters: (filters: PaceOptions) => void;
+  advanced: AdvancedSelection;
 }) {
   const { clean, compound, stint, from, to } = filters;
   const setClean = (clean: boolean) => onFilters({ ...filters, clean });
@@ -574,24 +713,28 @@ export function PacePanels({
   const maxLap = Math.max(1, ...data.laps.map((l) => l.number));
   const filtered = useMemo(
     () =>
-      paceLaps(data.laps, {
+      advanced.paceActive
+        ? advancedPaceLaps(data.laps, selected, advanced.pace)
+        : paceLaps(data.laps, {
+            drivers: selected,
+            compound,
+            stint,
+            from,
+            to,
+            clean,
+          }),
+    [data, selected, compound, stint, from, to, clean, advanced],
+  );
+  const eligible = advanced.paceActive
+    ? data.laps.filter((l) => selected.includes(l.driver))
+    : paceLaps(data.laps, {
         drivers: selected,
         compound,
         stint,
         from,
         to,
-        clean,
-      }),
-    [data, selected, compound, stint, from, to, clean],
-  );
-  const eligible = paceLaps(data.laps, {
-    drivers: selected,
-    compound,
-    stint,
-    from,
-    to,
-    clean: false,
-  });
+        clean: false,
+      });
   const seriesByDriver = (field: "time" | "position", source: Lap[]) =>
     selected.map((d, i) =>
       line(
@@ -606,7 +749,11 @@ export function PacePanels({
     );
   const lapOption = {
     dataZoom: zoom,
-    xAxis: { name: "Lap", min: from, max: Math.min(to, maxLap) },
+    xAxis: {
+      name: "Lap",
+      min: advanced.paceActive ? undefined : from,
+      max: advanced.paceActive ? undefined : Math.min(to, maxLap),
+    },
     yAxis: { name: "Lap time (s)" },
     series: seriesByDriver("time", filtered),
   };
@@ -675,7 +822,11 @@ export function PacePanels({
   const race = ["R", "S"].includes(session.code);
   return (
     <>
-      <div className="pace-filters">
+      <fieldset
+        className="pace-filters"
+        disabled={advanced.paceActive}
+        aria-label="Shared pace filters"
+      >
         <label className="check-label">
           <input
             type="checkbox"
@@ -734,11 +885,13 @@ export function PacePanels({
           <br />
           <small>{eligible.length - filtered.length} excluded</small>
         </span>
-      </div>
+      </fieldset>
       <p className="filter-note">
-        {clean
-          ? "Valid, accurate green-flag laps. First laps, pit-in/out laps and times above 107% of each driver’s eligible stint median are excluded."
-          : "All timed laps, including deleted laps, pit laps and disrupted running."}
+        {advanced.paceActive
+          ? "Independent driver selections are active. Reset advanced pace selection to use shared filters."
+          : clean
+            ? "Valid, accurate green-flag laps. First laps, pit-in/out laps and times above 107% of each driver’s eligible stint median are excluded."
+            : "All timed laps, including deleted laps, pit laps and disrupted running."}
       </p>
       {!filtered.length ? (
         <Empty>

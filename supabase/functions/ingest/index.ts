@@ -1,5 +1,14 @@
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { calendarChanges, publicationPath } from "../_shared/policy.ts";
+import {
+  MAX_TELEMETRY_BYTES,
+  retainedObject,
+  sha256,
+  validChunk,
+  validTelemetryFile,
+  validateManifest,
+  verifyTelemetryDependencies,
+} from "../_shared/telemetry.ts";
 
 const db = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -15,6 +24,32 @@ const validId = (id: unknown): id is string =>
   typeof id === "string" &&
   /^20\d{2}-\d{2}-(FP[123]|Q|SQ|S|R)$/.test(id) &&
   Number(id.slice(0, 4)) === 2026;
+
+async function uploadImmutable(path: string, bytes: Uint8Array) {
+  const slash = path.lastIndexOf("/");
+  const existing = await db.storage
+    .from("analysis")
+    .list(path.slice(0, slash), { search: path.slice(slash + 1), limit: 2 });
+  check(existing);
+  if (existing.data?.some((o) => o.name === path.slice(slash + 1))) return;
+  const usage = await db.rpc("analysis_storage_bytes");
+  check(usage);
+  if (Number(usage.data) + bytes.byteLength > 750 * 1024 * 1024)
+    throw new Error("Storage budget reached; existing data retained");
+  const upload = await db.storage
+    .from("analysis")
+    .upload(path, bytes, {
+      contentType: "application/json",
+      cacheControl: "31536000",
+      upsert: false,
+    });
+  if (
+    upload.error &&
+    !["409", "Duplicate"].includes(String(upload.error.statusCode)) &&
+    !upload.error.message.toLowerCase().includes("already exists")
+  )
+    throw upload.error;
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return reply({ error: "Method not allowed" }, 405);
@@ -152,11 +187,22 @@ Deno.serve(async (req: Request) => {
       .single();
     check(lookup);
     const session = lookup.data;
-    const queued = await db.from("analysis_queue").select("state,lease_token,lease_expires_at").eq("session_id", session.id).maybeSingle();
+    const queued = await db
+      .from("analysis_queue")
+      .select("state,lease_token,lease_expires_at")
+      .eq("session_id", session.id)
+      .maybeSingle();
     check(queued);
-    if (queued.data && (!body.lease_token || body.lease_token !== queued.data.lease_token || queued.data.state !== "processing" || Date.parse(queued.data.lease_expires_at) <= Date.now()))
+    if (
+      queued.data &&
+      (!body.lease_token ||
+        body.lease_token !== queued.data.lease_token ||
+        queued.data.state !== "processing" ||
+        Date.parse(queued.data.lease_expires_at) <= Date.now())
+    )
       return reply({ error: "Inactive worker lease" }, 409);
-    if (body.lease_token && !queued.data) return reply({ error: "Unknown worker lease" }, 409);
+    if (body.lease_token && !queued.data)
+      return reply({ error: "Unknown worker lease" }, 409);
     if (body.action === "failed") {
       check(
         await db
@@ -175,6 +221,28 @@ Deno.serve(async (req: Request) => {
       );
       return reply({ retained: session.version });
     }
+    if (body.action === "telemetry") {
+      if (
+        !validTelemetryFile(body.file, body.version) ||
+        typeof body.chunk_json !== "string" ||
+        !/^[a-f0-9]{64}$/.test(body.sha256)
+      )
+        return reply({ error: "Invalid telemetry upload" }, 400);
+      const bytes = new TextEncoder().encode(body.chunk_json);
+      if (bytes.byteLength > MAX_TELEMETRY_BYTES)
+        return reply({ error: "Telemetry file too large" }, 413);
+      if (
+        !validChunk(JSON.parse(body.chunk_json), session.id) ||
+        (await sha256(bytes)) !== body.sha256
+      )
+        return reply({ error: "Invalid telemetry file" }, 400);
+      publicationPath(session.id, session.year, body.version);
+      await uploadImmutable(
+        `${session.year}/${session.id}/${body.file}`,
+        bytes,
+      );
+      return reply({ file: body.file, bytes: bytes.byteLength });
+    }
     if (body.action !== "publish")
       return reply({ error: "Unknown action" }, 400);
     const artifact = body.artifact;
@@ -192,37 +260,53 @@ Deno.serve(async (req: Request) => {
     if (bytes.byteLength > 12 * 1024 * 1024)
       return reply({ error: "Artifact too large" }, 413);
     const path = publicationPath(session.id, session.year, body.version);
+    let manifest;
+    try {
+      manifest = validateManifest(
+        artifact.telemetry_manifest,
+        body.version,
+        artifact.laps,
+      );
+    } catch {
+      return reply({ error: "Invalid telemetry manifest" }, 400);
+    }
+    // Verify every dependency before exposing the new public artifact pointer.
+    const telemetryBytes = await verifyTelemetryDependencies(
+      manifest,
+      session.id,
+      async (file) => {
+        const object = await db.storage
+          .from("analysis")
+          .download(`${session.year}/${session.id}/${file}`);
+        check(object);
+        return new Uint8Array(await object.data!.arrayBuffer());
+      },
+    );
     if (session.version !== body.version) {
-      const usage = await db.rpc("analysis_storage_bytes");
-      check(usage);
-      if (Number(usage.data) + bytes.byteLength > 750 * 1024 * 1024)
-        return reply(
-          { error: "Free storage budget reached; existing data retained" },
-          507,
-        );
-      const upload = await db.storage
-        .from("analysis")
-        .upload(path, bytes, {
-          contentType: "application/json",
-          cacheControl: "31536000",
-          upsert: false,
-        });
-      // A retry after an interrupted publication can find the immutable file already present.
-      if (
-        upload.error &&
-        !["409", "Duplicate"].includes(String(upload.error.statusCode)) &&
-        !upload.error.message.toLowerCase().includes("already exists")
-      )
-        throw upload.error;
+      await uploadImmutable(path, bytes);
     }
     // The artifact exists before the public pointer changes. Readers never see partial files.
     const committed = await db.rpc("publish_analysis", {
-      p_session: session.id, p_lease: body.lease_token || null, p_path: path,
-      p_version: body.version, p_partial: artifact.unavailable.length > 0,
-      p_bytes: bytes.byteLength, p_stage: Math.max(0, Math.min(2, Math.trunc(Number(body.correction_stage) || 0))),
+      p_session: session.id,
+      p_lease: body.lease_token || null,
+      p_path: path,
+      p_version: body.version,
+      p_partial: artifact.unavailable.length > 0,
+      p_bytes: bytes.byteLength + telemetryBytes,
+      p_stage: Math.max(
+        0,
+        Math.min(2, Math.trunc(Number(body.correction_stage) || 0)),
+      ),
     });
     check(committed);
-    if (!committed.data) return reply({ error: "Worker lease expired or session changed; previous data retained" }, 409);
+    if (!committed.data)
+      return reply(
+        {
+          error:
+            "Worker lease expired or session changed; previous data retained",
+        },
+        409,
+      );
     const prefix = `${session.year}/${session.id}`;
     const objects = await db.storage
       .from("analysis")
@@ -231,16 +315,25 @@ Deno.serve(async (req: Request) => {
       const old = objects.data
         .filter(
           (o) =>
-            o.name !== `${body.version}.json` &&
-            o.name !== `${session.version}.json` &&
+            o.created_at != null &&
+            !retainedObject(o.name, body.version, session.version) &&
             Date.parse(o.created_at) < Date.now() - 7 * 86400000,
         )
         .map((o) => `${prefix}/${o.name}`);
       if (old.length) await db.storage.from("analysis").remove(old);
     }
-    return reply({ version: body.version, bytes: bytes.byteLength });
+    return reply({
+      version: body.version,
+      bytes: bytes.byteLength + telemetryBytes,
+    });
   } catch (error) {
     console.error(error instanceof Error ? error.message : "Ingestion failure");
-    return reply({ error: "Ingestion failed; previous data retained" }, 500);
+    return reply(
+      { error: "Ingestion failed; previous data retained" },
+      error instanceof Error &&
+        error.message.startsWith("Storage budget reached")
+        ? 507
+        : 500,
+    );
   }
 });

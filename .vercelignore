@@ -5,7 +5,12 @@
 fastf1_cache
 pipeline
 tests
-supabase
+supabase/*
+!supabase/functions
+supabase/functions/*
+!supabase/functions/_shared
+supabase/functions/_shared/*
+!supabase/functions/_shared/telemetry.ts
 *.ipynb
 requirements*.txt
 Dockerfile

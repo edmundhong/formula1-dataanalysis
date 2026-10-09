@@ -11,7 +11,7 @@ def main():
     (TARGET / "api").mkdir(parents=True, exist_ok=True)
     (TARGET / "pipeline").mkdir(exist_ok=True)
     shutil.copyfile(ROOT / "worker/api/analysis.py", TARGET / "api/analysis.py")
-    for name in ("__init__.py", "worker.py", "ingest.py", "analysis.py", "scheduler.py"):
+    for name in ("__init__.py", "worker.py", "ingest.py", "analysis.py", "scheduler.py", "telemetry.py"):
         shutil.copyfile(ROOT / "pipeline" / name, TARGET / "pipeline" / name)
     excluded = {"pytest", "iniconfig", "pluggy", "Pygments"}
     requirements = (ROOT / "pipeline/requirements.txt").read_text().splitlines()

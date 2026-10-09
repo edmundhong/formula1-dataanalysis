@@ -1,4 +1,131 @@
 @import "tailwindcss";
+.advanced-selection {
+  margin: 0 0 24px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+}
+.advanced-selection > summary {
+  padding: 18px 22px;
+  cursor: pointer;
+}
+.advanced-selection > summary span {
+  color: var(--muted);
+  font-size: 12px;
+  margin-left: 16px;
+}
+.advanced-selection summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.advanced-body {
+  padding: 0 22px 22px;
+}
+.advanced-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.advanced-row {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 16px;
+  padding: 18px;
+  margin: 16px 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.advanced-row legend {
+  font-size: 13px;
+  font-weight: 700;
+  padding: 0 6px;
+}
+.advanced-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  min-width: 110px;
+}
+.advanced-row select,
+.advanced-row input[type="number"] {
+  background: var(--panel-alt);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 9px;
+  max-width: 100%;
+}
+.advanced-row input[type="number"] {
+  width: 100px;
+}
+.advanced-row .check-label,
+.advanced-body > .check-label {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.advanced-body > .check-label {
+  display: flex;
+}
+.advanced-row .lap-select {
+  flex: 1;
+  min-width: 230px;
+}
+.selection-detail {
+  width: 100%;
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.lap-list {
+  width: 100%;
+  font-size: 13px;
+}
+.lap-list summary {
+  cursor: pointer;
+  padding: 8px 0;
+}
+.telemetry-status {
+  padding: 0 22px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.telemetry-status p {
+  margin: 6px 0;
+}
+.pace-filters {
+  min-width: 0;
+}
+.pace-filters:disabled label {
+  opacity: 0.55;
+}
+@media (max-width: 640px) {
+  .advanced-selection > summary span {
+    display: block;
+    margin: 5px 0 0 18px;
+  }
+  .advanced-body {
+    padding: 0 12px 16px;
+  }
+  .advanced-row {
+    padding: 12px;
+  }
+  .advanced-row label,
+  .advanced-row .lap-select {
+    min-width: 0;
+    width: 100%;
+    flex: auto;
+  }
+  .advanced-row input[type="number"] {
+    width: 100%;
+  }
+}
 :root {
   --bg: #f5f6f8;
   --panel: #fff;

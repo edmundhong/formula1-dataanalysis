@@ -39,7 +39,8 @@ test("queue SQL enforces admission, leases, recovery, publication fencing and pe
     const second = await call("claim_analysis()");
     assert.equal(second.session.id, "2026-12-R");
     assert.equal(await call("publish_analysis($1,$2,'old','old',false,10,0)", [first.session.id, first.lease_token]), false);
-    assert.equal(await call("publish_analysis($1,$2,'new','new',false,10,2)", [second.session.id, second.lease_token]), true);
+    assert.equal(await call("publish_analysis($1,$2,'new','new',false,4195000,2)", [second.session.id, second.lease_token]), true);
+    assert.equal(await call("(select artifact_bytes::int from ingestion_jobs where session_id='2026-12-R')"), 4195000);
     assert.equal(await call("publish_analysis($1,$2,'stale','stale',false,10,0)", [second.session.id, second.lease_token]), false);
     assert.equal(await call("publish_analysis($1,null,'legacy','legacy',false,10,0)", [second.session.id]), false);
     assert.equal(await call("(select artifact_path from sessions where id='2026-12-R')"), "new");

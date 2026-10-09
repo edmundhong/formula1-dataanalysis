@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Analysis, Session } from "./types";
+import { validateManifest } from "../supabase/functions/_shared/telemetry";
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 export const configured = Boolean(url && key);
@@ -40,5 +41,24 @@ export async function loadAnalysis(session: Session): Promise<Analysis> {
     !Array.isArray(result.laps)
   )
     throw new Error("This session uses an unsupported data format.");
+  validateManifest(
+    result.telemetry_manifest,
+    session.version || "",
+    result.laps,
+  );
   return result;
+}
+
+export function telemetryUrl(session: Session, file: string) {
+  if (
+    !client ||
+    !session.artifact_path ||
+    !/^[a-f0-9]{20}\.telemetry-\d{4}\.json$/.test(file) ||
+    !file.startsWith(`${session.version}.`)
+  )
+    throw new Error("Telemetry is unavailable for this session version.");
+  const path =
+    session.artifact_path.slice(0, session.artifact_path.lastIndexOf("/") + 1) +
+    file;
+  return client.storage.from("analysis").getPublicUrl(path).data.publicUrl;
 }

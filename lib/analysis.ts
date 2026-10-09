@@ -87,7 +87,7 @@ export function dominance(traces: Trace[]): DominanceSection[] {
     const times = valid
       ? traces
           .map((t) => ({
-            driver: t.driver,
+            driver: t.comparison_id ?? t.driver,
             seconds: t.time[end]! - t.time[start]!,
           }))
           .sort((a, b) => a.seconds - b.seconds)

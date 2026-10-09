@@ -6,6 +6,8 @@ Public dashboard: **[edmundhong.com/formula1-dataanalysis](https://edmundhong.co
 
 The web app covers the 2026 race weekends, including practice, qualifying, sprint qualifying, sprints, and races. Switch between Best Lap and Race Pace, compare up to four drivers, and choose light/dark mode. Select a completed session and, if it has not been cached yet, the dashboard automatically requests a FastF1 analysis and updates when it is published. Driver/team colours come directly from FastF1's official session colour map.
 
+Open **Advanced selection** to compare up to four individual laps (including two laps from the same driver), choose qualifying segments and a delta reference, or give each driver independent race-pace filters and lap exclusions. Selections are shareable through the URL. Arbitrary-lap telemetry becomes available as sessions are reprocessed; older artifacts retain their existing fastest-lap telemetry. See [advanced selection and rollout](docs/advanced-selection.md).
+
 ### Development
 
 Use Node 24 and Python 3.12. Copy `.env.example` to `.env.local` and fill in the Supabase URL and **publishable** key. Never put an ingestion token or service-role key in a `NEXT_PUBLIC_` variable.
