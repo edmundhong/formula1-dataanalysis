@@ -802,6 +802,17 @@ select optgroup {
 .chart {
   width: 100%;
 }
+.pace-medians {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 24px;
+  padding: 0 24px 20px;
+}
+.pace-medians > div { display: grid; gap: 4px; font-size: 12px; }
+.pace-medians span, .pace-medians small { color: var(--muted); }
+.pace-compounds { display: flex; flex-wrap: wrap; gap: 12px; padding: 0 24px 16px; font-size: 10px; color: var(--muted); }
+.pace-compounds span { display: inline-flex; align-items: center; gap: 5px; }
+.pace-compounds i { width: 7px; height: 7px; border-radius: 50%; }
 .chart-skeleton {
   height: 290px;
   background: linear-gradient(110deg, transparent, var(--soft), transparent);

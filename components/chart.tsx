@@ -4,7 +4,7 @@ import * as echarts from "echarts/core";
 import {
   LineChart,
   BarChart,
-  BoxplotChart,
+  CustomChart,
   ScatterChart,
 } from "echarts/charts";
 import {
@@ -20,7 +20,7 @@ import type { EChartsOption } from "echarts";
 echarts.use([
   LineChart,
   BarChart,
-  BoxplotChart,
+  CustomChart,
   ScatterChart,
   GridComponent,
   TooltipComponent,

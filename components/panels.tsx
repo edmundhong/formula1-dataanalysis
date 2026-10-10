@@ -1,5 +1,6 @@
 "use client";
 import dynamic from "next/dynamic";
+import type { CustomSeriesRenderItem } from "echarts";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Activity, ArrowUpRight, Info, Wind } from "lucide-react";
 import {
@@ -827,23 +828,81 @@ export function PacePanels({
   const distributions = selected
     .map((d) => ({
       driver: d,
+      laps: filtered.filter((l) => l.driver === d),
       values: filtered.filter((l) => l.driver === d).map((l) => l.time!),
     }))
     .filter((g) => g.values.length);
-  const boxOption = {
-    xAxis: { type: "category", data: distributions.map((g) => g.driver) },
+  const violinOption = {
+    aria: { decal: { show: false } },
+    tooltip: { trigger: "item" },
+    xAxis: {
+      type: "category",
+      data: distributions.map((g) => g.driver),
+      axisLabel: { interval: 0 },
+    },
     yAxis: { name: "Seconds" },
     series: [
-      {
-        type: "boxplot",
-        data: distributions.map((g) => ({
-          value: [0, 0.25, 0.5, 0.75, 1].map((p) => percentile(g.values, p)),
+      ...distributions.map((g, index) => {
+        const min = Math.min(...g.values);
+        const max = Math.max(...g.values);
+        const mid = percentile(g.values, 0.5);
+        // Gaussian kernel density, clipped to the observed lap-time range.
+        const mean = g.values.reduce((sum, v) => sum + v, 0) / g.values.length;
+        const deviation = Math.sqrt(g.values.reduce((sum, v) => sum + (v - mean) ** 2, 0) / g.values.length);
+        const bandwidth = Math.max(0.015, 1.06 * deviation * g.values.length ** -0.2);
+        const densityAt = (value: number) => g.values.reduce((sum, v) => sum + Math.exp(-0.5 * ((value - v) / bandwidth) ** 2), 0);
+        const samples = Array.from({ length: 65 }, (_, i) => min + (max - min) * i / 64);
+        const peak = Math.max(...samples.map(densityAt));
+        const renderItem: CustomSeriesRenderItem = (_params, api) => {
+          const center = api.coord([index, mid]);
+          const halfWidth = Math.min(42, Math.abs(api.coord([index + 1, mid])[0] - center[0]) * 0.34);
+          const side = (sign: number) => samples.map((v) => [center[0] + sign * halfWidth * densityAt(v) / peak, api.coord([index, v])[1]]);
+          return {
+            type: "group",
+            children: [
+              ...(min < max ? [{
+                type: "polygon" as const,
+                shape: { points: [...side(-1), ...side(1).reverse()] },
+                style: { fill: color(data.drivers, g.driver) + "33", stroke: color(data.drivers, g.driver), lineWidth: 1.5 },
+              }] : []),
+              {
+                type: "line",
+                shape: { x1: center[0] - halfWidth, x2: center[0] + halfWidth, y1: center[1], y2: center[1] },
+                style: { stroke: color(data.drivers, g.driver), lineWidth: 2 },
+              },
+            ],
+          };
+        };
+        return {
+          type: "custom",
+          renderItem,
+          silent: true,
+          data: [[index, min, max]],
+          encode: { x: 0, y: [1, 2] },
+        };
+      }),
+      ...distributions.map((g, index) => ({
+        type: "scatter",
+        symbolSize: 6,
+        z: 3,
+        tooltip: {
+          formatter: (params: { dataIndex: number }) => {
+            const lap = g.laps[params.dataIndex];
+            return `${g.driver} · Lap ${lap.number}\n${lap.compound} · ${lap.time!.toFixed(3)} s`;
+          },
+          renderMode: "richText",
+        },
+        data: g.laps.map((lap, lapIndex) => ({
+          value: [index, lap.time],
+          symbolOffset: [((lapIndex * 0.61803398875) % 1 - 0.5) * 18, 0],
           itemStyle: {
-            color: color(data.drivers, g.driver) + "44",
-            borderColor: color(data.drivers, g.driver),
+            color: compoundColors[lap.compound] || compoundColors.UNKNOWN,
+            borderColor: theme === "dark" ? "#171c23" : "#fff",
+            borderWidth: 0.7,
+            opacity: 0.9,
           },
         })),
-      },
+      })),
     ],
     legend: { show: false },
   };
@@ -961,16 +1020,30 @@ export function PacePanels({
           <div className="equal-grid">
             <Panel title="Pace distribution" eyebrow="CONSISTENCY COUNTS">
               <Chart
-                option={boxOption}
+                option={violinOption}
                 theme={theme}
-                label="Lap time minimum, quartiles, median and maximum"
+                label="Lap time violin distributions with tyre-coloured lap dots and driver medians below"
               />
               <p className="footnote">
-                Whiskers show min/max; box shows quartiles and median.{" "}
-                {distributions
-                  .map((g) => `${g.driver}: ${g.values.length} laps`)
-                  .join(" · ")}
+                Width shows lap-time density; dots show laps coloured by tyre compound. Horizontal lines show medians.
               </p>
+              <div className="pace-compounds">
+                {[...new Set(filtered.map((lap) => lap.compound))].map((compound) => (
+                  <span key={compound}>
+                    <i style={{ background: compoundColors[compound] || compoundColors.UNKNOWN }} />
+                    {compound}
+                  </span>
+                ))}
+              </div>
+              <div className="pace-medians">
+                {distributions.map((g) => (
+                  <div key={g.driver}>
+                    <strong style={{ color: color(data.drivers, g.driver) }}>{g.driver}</strong>
+                    <span>Median <b className="mono">{percentile(g.values, 0.5).toFixed(3)} s</b></span>
+                    <small>{g.values.length} laps</small>
+                  </div>
+                ))}
+              </div>
             </Panel>
             <Panel title="Sector pace" eyebrow="SECTOR BY SECTOR">
               <SectorPaceMap data={data} laps={filtered} selected={selected} />
