@@ -1453,3 +1453,25 @@ footer > a {
 .summary-pills button { border-radius: 16px; padding: 8px 14px; font-size: 12px; transition: color 180ms ease; }
 .summary-pills.has-highlight button.active { background: transparent; }
 .summary-pills button:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.sector-pace { padding: 0 20px 4px; }
+.sector-toolbar { display: flex; justify-content: flex-end; gap: 4px; }
+.sector-toolbar button { padding: 6px 12px; border-radius: 8px; color: var(--muted); font-size: 12px; }
+.sector-toolbar button[aria-pressed="true"] { background: var(--soft); color: var(--text); }
+.sector-toolbar button:focus-visible { outline: 2px solid var(--text); }
+.sector-circuit { display: block; width: 100%; height: auto; }
+.sector-rankings { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.sector-rankings section { border-top: 3px solid; padding-top: 10px; }
+.sector-rankings h3 { font-size: 13px; margin: 0 0 10px; }
+.sector-rankings ol { list-style: none; padding: 0; margin: 0; }
+.sector-rankings li { display: flex; justify-content: space-between; gap: 6px; margin: 8px 0; font-size: 12px; }
+.sector-rankings li span { display: flex; align-items: center; gap: 5px; }
+.sector-rankings i { width: 6px; height: 6px; border-radius: 50%; }
+.sector-rankings strong { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sector-rankings small { font-size: 10px; font-weight: 400; }
+.sector-pace .footnote { padding: 12px 0; }
+.sector-unavailable { padding: 36px 12px; text-align: center; color: var(--muted); }
+@media (max-width: 480px) {
+  .sector-pace { padding-inline: 14px; }
+  .sector-rankings { gap: 8px; }
+  .sector-rankings li { font-size: 11px; }
+}

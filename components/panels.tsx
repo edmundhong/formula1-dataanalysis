@@ -23,6 +23,7 @@ import { advancedPaceLaps } from "@/lib/advanced";
 import { useLapTelemetry } from "./use-lap-telemetry";
 import { cornerMarkers } from "@/lib/corners";
 import { trackPosition } from "@/lib/track-position";
+import { SectorPaceMap } from "./sector-pace-map";
 const comparisonColors = ["#479eff", "#f59e0b", "#c084fc", "#10b981"];
 const comparisonColor = (index: number) => comparisonColors[index % comparisonColors.length];
 const traceColor = (t: Trace, traces: Trace[]) => comparisonColor(t.comparison_id?.startsWith("slot-") ? Number(t.comparison_id.slice(5)) : traces.indexOf(t));
@@ -846,23 +847,6 @@ export function PacePanels({
     ],
     legend: { show: false },
   };
-  const sectorOption = {
-    xAxis: { type: "category", data: ["Sector 1", "Sector 2", "Sector 3"] },
-    yAxis: { name: "Seconds" },
-    series: selected.map((d) => ({
-      name: d,
-      type: "bar",
-      itemStyle: { color: color(data.drivers, d) },
-      data: [0, 1, 2].map((i) =>
-        median(
-          filtered
-            .filter((l) => l.driver === d)
-            .map((l) => l.sectors[i])
-            .filter((v): v is number => v != null),
-        ),
-      ),
-    })),
-  };
   const tyreGroups = new Map<string, Lap[]>();
   for (const lap of filtered) {
     const key = `${lap.driver} · ${lap.compound} · stint ${lap.stint}`;
@@ -988,12 +972,8 @@ export function PacePanels({
                   .join(" · ")}
               </p>
             </Panel>
-            <Panel title="Median sector pace" eyebrow="SECTOR BY SECTOR">
-              <Chart
-                option={sectorOption}
-                theme={theme}
-                label="Median sector times from included laps"
-              />
+            <Panel title="Sector pace" eyebrow="SECTOR BY SECTOR">
+              <SectorPaceMap data={data} laps={filtered} selected={selected} />
             </Panel>
           </div>
           <Panel title="Tyre age & pace" eyebrow="OBSERVED STINT TRENDS">
