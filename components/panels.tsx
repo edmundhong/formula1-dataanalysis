@@ -25,6 +25,7 @@ import { useLapTelemetry } from "./use-lap-telemetry";
 import { cornerMarkers } from "@/lib/corners";
 import { trackPosition } from "@/lib/track-position";
 import { SectorPaceMap } from "./sector-pace-map";
+import { raceGaps, type RaceGapReference } from "@/lib/race-gap";
 const comparisonColors = ["#479eff", "#f59e0b", "#c084fc", "#10b981"];
 const comparisonColor = (index: number) => comparisonColors[index % comparisonColors.length];
 const traceColor = (t: Trace, traces: Trace[]) => comparisonColor(t.comparison_id?.startsWith("slot-") ? Number(t.comparison_id.slice(5)) : traces.indexOf(t));
@@ -748,6 +749,48 @@ function percentile(values: number[], p: number) {
   const n = (a.length - 1) * p;
   return a[Math.floor(n)] + (a[Math.ceil(n)] - a[Math.floor(n)]) * (n % 1);
 }
+function RaceGapPanel({ data, selected, theme }: {
+  data: Analysis; selected: string[]; theme: string;
+}) {
+  const [reference, setReference] = useState<RaceGapReference>("session");
+  const gaps = useMemo(() => raceGaps(data.laps, selected, reference), [data.laps, selected, reference]);
+  const available = gaps.some((series) => series.points.some((point) => point.gap != null));
+  const escapeLabel = (label: string) => label.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+  const option = {
+    dataZoom: zoom,
+    xAxis: { name: "Lap", minInterval: 1 },
+    yAxis: { name: "Gap (s)", min: 0 },
+    tooltip: {
+      trigger: "axis",
+      renderMode: "html",
+      confine: true,
+      formatter: (params: { seriesIndex: number; dataIndex: number }[]) => params.flatMap((param) => {
+        const series = gaps[param.seriesIndex];
+        const point = series?.points[param.dataIndex];
+        return point?.gap != null
+          ? [`${escapeLabel(series.driver)} · Lap ${point.lap} · ${point.gap.toFixed(3)} s behind ${escapeLabel(point.reference!)}`]
+          : [];
+      }).join("<br/>"),
+    },
+    series: gaps.map((series, i) => line(series.driver,
+      series.points.map((point) => [point.lap, point.gap]), color(data.drivers, series.driver), i)),
+  };
+  return <Panel title="Gap to leader" eyebrow="FULL SESSION RACE TIMING" className="race-gap-panel"
+    aside={<label className="race-gap-reference">Reference
+      <select value={reference} onChange={(event) => setReference(event.target.value as RaceGapReference)}>
+        <option value="session">Session leader</option>
+        <option value="selection">Leader of selection</option>
+      </select>
+    </label>}>
+    {available ? <Chart option={option} theme={theme} height={330}
+      label={`Selected drivers’ gap in seconds to the ${reference === "session" ? "session leader" : "leader of selection"} at each completed lap`} />
+      : <Empty>Race gap timing is unavailable for this session.</Empty>}
+    <p className="footnote">Full-session timing includes pit stops and disrupted laps, regardless of pace filters or lap exclusions.
+      Gaps compare equal completed race distance; lapped drivers retain their full time deficit. A shrinking gap means catching up.
+      Missing timing leaves a break in the line.</p>
+  </Panel>;
+}
+
 export interface PaceOptions {
   clean: boolean;
   compound: string;
@@ -1008,7 +1051,6 @@ export function PacePanels({
           range.
         </Empty>
       ) : (
-        <>
           <Panel title="Lap by lap" eyebrow="THE SHAPE OF A SESSION">
             <Chart
               option={lapOption}
@@ -1017,6 +1059,10 @@ export function PacePanels({
               label="Selected driver lap times across the session"
             />
           </Panel>
+      )}
+      {race && <RaceGapPanel key={session.id} data={data} selected={selected} theme={theme} />}
+      {filtered.length > 0 && (
+        <>
           <div className="equal-grid">
             <Panel title="Pace distribution" eyebrow="CONSISTENCY COUNTS">
               <Chart

@@ -14,6 +14,8 @@ Activate independent selection to copy shared filters into each selected driver'
 
 Long-run classification and degradation estimates are deferred. Existing tyre-age plots show observations without correcting for fuel, traffic, weather or track evolution.
 
+Race and Sprint include a Gap to leader chart using full-session finish-line timing, independent of pace filters and exclusions. Session leader (default) uses the earliest finish timestamp for each lap across the field; Leader of selection uses only selected drivers. The reference can change each lap. Gaps compare equal completed distance, retain pit-stop losses and lapped drivers’ full time deficits, and leave breaks for missing timing. The reference resets when sessions change. Optional lap `end_time` records FastF1 `Time` in session-relative seconds; schema version 1 remains compatible. Older publications without these timestamps show an unavailable message until refreshed through the existing queue. Deploy the worker and dashboard before refreshing Race/Sprint publications; validate a locally regenerated artifact first.
+
 ## Telemetry files and publication
 
 The version-1 artifact adds an optional `telemetry_manifest` with `chunks` (file, UTF-8 byte size, SHA-256 digest) and one `laps` entry per recorded lap (driver, lap number, chunk or unavailable reason). Existing embedded fastest-lap traces remain supported. Extra JSON files use `<version>.telemetry-NNNN.json` alongside the main artifact and stay below 4 MiB. A chunk contains `schema_version`, `session_id` and resampled `traces`.

@@ -27,6 +27,8 @@ export interface Lap {
   driver: string;
   number: number;
   time: number | null;
+  /** Session-relative finish-line timestamp in seconds. */
+  end_time?: number | null;
   sectors: (number | null)[];
   stint: number;
   compound: string;

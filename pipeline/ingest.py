@@ -145,6 +145,7 @@ def prepare(meta, refresh=False, telemetry_dir=None):
         if lap_time is None and all(x is not None for x in sectors):
             lap_time = round(sum(sectors), 6)
         lap = {"driver": str(row.Driver), "number": int(row.LapNumber), "time": lap_time,
+               "end_time": seconds(row.get("Time", pd.NaT)),
                "sectors": sectors, "stint": int(row.Stint) if pd.notna(row.Stint) else 0,
                "compound": str(row.Compound) if pd.notna(row.Compound) else "UNKNOWN",
                "tyre_age": number(row.TyreLife), "fresh": flag(row.FreshTyre),

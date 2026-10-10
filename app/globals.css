@@ -1,4 +1,6 @@
 @import "tailwindcss";
+.race-gap-panel .panel-heading { flex-wrap: wrap; }
+.race-gap-reference { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; color: var(--muted); font-size: 12px; }
 .advanced-selection {
   margin: 0 0 24px;
   border: 1px solid var(--border);
