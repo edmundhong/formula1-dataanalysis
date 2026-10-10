@@ -530,6 +530,11 @@ select optgroup {
   width: 2px;
   background: var(--accent);
 }
+.stat-card-rain {
+  border-color: #60a8ed;
+  background: linear-gradient(135deg, rgb(96 168 237 / 18%), transparent 80%), var(--panel);
+  box-shadow: inset 3px 0 0 #60a8ed;
+}
 .stat-card > span {
   display: flex;
   align-items: center;

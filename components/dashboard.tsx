@@ -239,6 +239,7 @@ export default function Dashboard() {
     .filter((s) => s.year === year && s.round === session?.round)
     .sort((a, b) => a.starts_at.localeCompare(b.starts_at));
   const currentData = data?.session_id === sessionId ? data : null;
+  const rainRecorded = currentData?.weather.some((w) => w.rain) ?? false;
   const best = useMemo(
     () => bestLaps(currentData?.laps || [], phase),
     [currentData, phase],
@@ -606,14 +607,14 @@ export default function Dashboard() {
                   <span className="muted">in the session</span>
                 </small>
               </div>
-              <div className="stat-card">
+              <div className={`stat-card${rainRecorded ? " stat-card-rain" : ""}`}>
                 <span>
-                  <Flag size={14} />
+                  {rainRecorded ? <span aria-hidden="true">🌧️</span> : <Flag size={14} />}
                   TRACK CONDITIONS
                 </span>
                 <strong>
                   {currentData.weather.length
-                    ? currentData.weather.some((w) => w.rain)
+                    ? rainRecorded
                       ? "Rain recorded"
                       : "No rain"
                     : "Unavailable"}
