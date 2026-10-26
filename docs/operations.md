@@ -1,5 +1,10 @@
 # Operations and methodology
 
+For the OpenF1 adapter, resumable checkpoints, provider compatibility and the
+current deployment approval status, follow [the OpenF1 migration runbook](openf1-migration.md).
+Its deployment instructions supersede the FastF1 analysis-worker rollout below;
+the calendar-only workflow and retained artifacts continue to use FastF1.
+
 ## Deployment
 
 - Vercel project: `formula1-dataanalysis`; Next.js base path: `/formula1-dataanalysis`.
@@ -44,7 +49,7 @@ Raw FastF1 analysis caches live in a fresh temporary directory for each Vercel w
 - **Fastest lap:** lowest positive complete lap time with no deleted flag or pit entry/exit. Missing lap time is reconstructed only when all three sector times exist. Qualifying segments use FastF1's segment boundaries. These rankings compare best laps, not necessarily official starting-grid order.
 - **Clean pace:** positive, non-deleted, accurate, green-flag (`TrackStatus == '1'`) laps, excluding lap one and pit-in/out laps. Remove laps above 107% of the median of eligible laps in the same driver/stint group. All timed laps disables those exclusions. Wet laps can remain eligible; filter compounds and compare like-for-like stints.
 - **Pit-lane time:** matched entry/exit events ordered separately for each driver. Unpaired events and garage visits over five minutes are excluded. This is not stationary service time.
-- **Track dominance:** elapsed telemetry time resampled onto 1,000 normalized lap-distance points, with the first selected driver's geometry as reference. Compare traversal time across 50 sections. Same-team colours remain unchanged; patterns, labels, and line styles distinguish drivers. Differences below 0.01 seconds count as approximate ties.
+- **Track dominance:** elapsed telemetry time resampled onto 1,000 normalized lap-distance points, using the selected trace with the most complete coordinates as the shared circuit outline. Position coverage is independent of timing reliability; every section still uses each selected lap's own elapsed time. Compare traversal time across 50 sections. Same-team colours remain unchanged; patterns, labels, and line styles distinguish drivers. Differences below 0.01 seconds count as approximate ties.
 - **Quality controls:** no extrapolation, no interpolation across telemetry gaps over one second, positive monotonic distance/time, lap-end/start timing within 0.15 seconds and sector totals within 0.15 seconds of lap time. Reject timing comparisons below 98% coverage. Missing sections cannot produce a winner. Normalized distance does not resolve racing-line differences, so dominance and delta remain estimates rather than official mini-sector timing.
 - **Tyre-age trends:** separated by driver, stint and compound. No claimed fuel, traffic, weather or track-evolution correction.
 

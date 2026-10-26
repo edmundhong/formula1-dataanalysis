@@ -4,7 +4,7 @@
 
 Public dashboard: **[edmundhong.com/formula1-dataanalysis](https://edmundhong.com/formula1-dataanalysis)**.
 
-The web app covers the 2026 race weekends, including practice, qualifying, sprint qualifying, sprints, and races. Switch between Best Lap and Race Pace, compare up to four drivers, and choose light/dark mode. Select a completed session and, if it has not been cached yet, the dashboard automatically requests a FastF1 analysis and updates when it is published. Driver/team colours come directly from FastF1's official session colour map.
+The web app covers the 2026 race weekends, including practice, qualifying, sprint qualifying, sprints, and races. Switch between Best Lap and Race Pace, compare up to four drivers, and choose light/dark mode. Select a completed session and, if it has not been cached yet, the dashboard requests analysis and updates when it is published. New ingestion uses free historical OpenF1 data; existing FastF1 artifacts are retained. Driver/team colours come from the session's provider metadata. See the [OpenF1 migration and activation runbook](docs/openf1-migration.md) for deployment status and source limitations.
 
 Open **Advanced selection** to compare up to four individual laps (including two laps from the same driver), choose qualifying segments and a delta reference, or give each driver independent race-pace filters and lap exclusions. Selections are shareable through the URL. Arbitrary-lap telemetry becomes available as sessions are reprocessed; older artifacts retain their existing fastest-lap telemetry. See [advanced selection and rollout](docs/advanced-selection.md).
 
@@ -27,9 +27,9 @@ npm run build
 
 ### Architecture and operation
 
-The Next.js client reads the public session catalogue from Supabase and immutable JSON analysis files from Storage. A durable Supabase queue dispatches bounded Python/FastF1 workers on Vercel; GitHub Actions refreshes the calendar. Visitors can request missing completed sessions through a rate-limited server endpoint. The protected Supabase `ingest` Edge Function publishes immutable artifacts and atomically updates pointers only for the current worker lease.
+The Next.js client reads the public session catalogue from Supabase and immutable JSON analysis files from Storage. A durable Supabase queue dispatches bounded, resumable Python/OpenF1 workers on Vercel; GitHub Actions refreshes the calendar using FastF1 schedule metadata. Visitors can request missing completed sessions through a rate-limited server endpoint. The protected Supabase `ingest` Edge Function publishes immutable artifacts and atomically updates pointers only for the current worker lease.
 
-See [queue deployment and rollout](docs/queue-operations.md) before enabling this path. It starts disabled, restricted to the two sessions validated by the Vercel probe, with one worker and a daily attempt budget.
+See [OpenF1 deployment and rollout](docs/openf1-migration.md) before enabling this path. It starts disabled with an Austin qualifying canary, one active worker and the existing daily invocation budget. The [original queue runbook](docs/queue-operations.md) documents the baseline before this migration.
 
 See [operations and methodology](docs/operations.md) for deployment, cache behaviour, limitations, manual recovery and calculations. The notebooks below are retained as the original exploratory work.
 

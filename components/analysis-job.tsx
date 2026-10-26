@@ -52,13 +52,15 @@ export function AnalysisJob({ session, onPublished }: { session: Session; onPubl
     } catch (e) { setError(e instanceof Error ? e.message : "Could not queue analysis."); }
     finally { setBusy(false); }
   }
-  const labels = { queued: "Waiting to pull FastF1 data", processing: "Pulling FastF1 data and preparing stats", retry: "Waiting to retry FastF1 data", failed: "Analysis needs attention", succeeded: "Analysis published" };
+  const labels = { queued: "Waiting to pull session data", processing: "Pulling session data and preparing stats", retry: "Waiting to retry session data", failed: "Analysis needs attention", succeeded: "Analysis published" };
   if (session.artifact_path && (!job || job.state === "succeeded")) return null;
   return <div className="notice" aria-live="polite">
     <div>
-      <strong>{busy ? "Requesting FastF1 data" : job ? labels[job.state] : enabled ? "Preparing FastF1 data request" : "Analysis service is unavailable"}</strong>
+      <strong>{busy ? "Requesting session data" : job ? labels[job.state] : enabled ? "Preparing session data request" : "Analysis service is unavailable"}</strong>
       {job?.last_attempt_at && <p>Last attempt: {new Date(job.last_attempt_at).toLocaleString()} · Attempt {job.attempts}</p>}
-      {job?.state === "retry" && job.next_attempt_at && <p>Retry eligible after {new Date(job.next_attempt_at).toLocaleString()}.</p>}
+      {job?.progress?.total != null && <p>Telemetry prepared for {job.progress.completed || 0} of {job.progress.total} drivers.</p>}
+      {activeJob(job) && job?.daily_budget_exhausted && <p>The daily processing budget is used. Processing can resume after {new Date(job.effective_retry_at!).toLocaleString()}.</p>}
+      {job?.state === "retry" && !job.daily_budget_exhausted && job.next_attempt_at && <p>Retry eligible after {new Date(job.effective_retry_at || job.next_attempt_at).toLocaleString()}.</p>}
       {activeJob(job) && <p>Keep this page open or come back shortly. The stats will appear automatically once the session is ready.</p>}
       {error && <p role="alert">{error}</p>}
     </div>

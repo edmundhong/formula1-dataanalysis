@@ -8,6 +8,7 @@ import {
   validTelemetryFile,
   validateManifest,
   verifyTelemetryDependencies,
+  verifyTelemetryReceipts,
 } from "../_shared/telemetry.ts";
 
 const db = createClient(
@@ -31,7 +32,7 @@ async function uploadImmutable(path: string, bytes: Uint8Array) {
     .from("analysis")
     .list(path.slice(0, slash), { search: path.slice(slash + 1), limit: 2 });
   check(existing);
-  if (existing.data?.some((o) => o.name === path.slice(slash + 1))) return;
+  if (existing.data?.some((o) => o.name === path.slice(slash + 1))) return false;
   const usage = await db.rpc("analysis_storage_bytes");
   check(usage);
   if (Number(usage.data) + bytes.byteLength > 750 * 1024 * 1024)
@@ -49,6 +50,7 @@ async function uploadImmutable(path: string, bytes: Uint8Array) {
     !upload.error.message.toLowerCase().includes("already exists")
   )
     throw upload.error;
+  return !upload.error;
 }
 
 Deno.serve(async (req: Request) => {
@@ -187,6 +189,8 @@ Deno.serve(async (req: Request) => {
       .single();
     check(lookup);
     const session = lookup.data;
+    if (session.artifact_path && session.analysis_provider === "FastF1" && ["publish", "telemetry"].includes(body.action))
+      return reply({ error: "Retained FastF1 artifact cannot be replaced" }, 409);
     const queued = await db
       .from("analysis_queue")
       .select("state,lease_token,lease_expires_at")
@@ -229,23 +233,40 @@ Deno.serve(async (req: Request) => {
       )
         return reply({ error: "Invalid telemetry upload" }, 400);
       const bytes = new TextEncoder().encode(body.chunk_json);
+      const chunkPayload = JSON.parse(body.chunk_json);
       if (bytes.byteLength > MAX_TELEMETRY_BYTES)
         return reply({ error: "Telemetry file too large" }, 413);
       if (
-        !validChunk(JSON.parse(body.chunk_json), session.id) ||
+        !validChunk(chunkPayload, session.id) ||
         (await sha256(bytes)) !== body.sha256
       )
         return reply({ error: "Invalid telemetry file" }, 400);
       publicationPath(session.id, session.year, body.version);
-      await uploadImmutable(
+      const uploaded = await uploadImmutable(
         `${session.year}/${session.id}/${body.file}`,
         bytes,
       );
+      if (session.analysis_provider === "OpenF1") {
+        if (!uploaded) {
+          const stored = await db.storage.from("analysis").download(`${session.year}/${session.id}/${body.file}`);
+          check(stored);
+          const actual = new Uint8Array(await stored.data!.arrayBuffer());
+          if (actual.byteLength !== bytes.byteLength || await sha256(actual) !== body.sha256)
+            return reply({ error: "Stored telemetry checksum mismatch" }, 409);
+        }
+        // Receipts allow final manifest verification to remain bounded even for
+        // race sessions containing hundreds of immutable telemetry dependencies.
+        check(await db.from("analysis_uploads").upsert({ session_id: session.id, version: body.version,
+          file: body.file, bytes: bytes.byteLength, sha256: body.sha256, verified_at: now,
+          laps: chunkPayload.traces.map((t: { driver: string; lap: number }) => ({ driver: t.driver, lap: t.lap })) }));
+      }
       return reply({ file: body.file, bytes: bytes.byteLength });
     }
     if (body.action !== "publish")
       return reply({ error: "Unknown action" }, 400);
     const artifact = body.artifact;
+    if (session.analysis_provider === "OpenF1" && (artifact?.provenance?.source !== "OpenF1" || !artifact.telemetry_manifest))
+      return reply({ error: "Unexpected analysis provider" }, 400);
     if (
       !/^[a-f0-9]{20}$/.test(body.version) ||
       artifact?.schema_version !== 1 ||
@@ -271,7 +292,14 @@ Deno.serve(async (req: Request) => {
       return reply({ error: "Invalid telemetry manifest" }, 400);
     }
     // Verify every dependency before exposing the new public artifact pointer.
-    const telemetryBytes = await verifyTelemetryDependencies(
+    let telemetryBytes: number;
+    if (session.analysis_provider === "OpenF1") {
+      const receipts = await db.from("analysis_uploads").select("file,bytes,sha256,laps")
+        .eq("session_id", session.id).eq("version", body.version).limit(1000);
+      check(receipts);
+      try { telemetryBytes = verifyTelemetryReceipts(manifest, receipts.data || []); }
+      catch { return reply({ error: "Telemetry dependency has not been verified" }, 409); }
+    } else telemetryBytes = await verifyTelemetryDependencies(
       manifest,
       session.id,
       async (file) => {

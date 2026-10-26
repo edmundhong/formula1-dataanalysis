@@ -11,6 +11,7 @@ import {
   median,
   paceLaps,
   selectedTraces,
+  timingVerified,
 } from "@/lib/analysis";
 import type {
   AdvancedSelection,
@@ -24,6 +25,7 @@ import { advancedPaceLaps } from "@/lib/advanced";
 import { useLapTelemetry } from "./use-lap-telemetry";
 import { cornerMarkers } from "@/lib/corners";
 import { trackPosition } from "@/lib/track-position";
+import { trackGeometry } from "@/lib/trace-quality";
 import { SectorPaceMap } from "./sector-pace-map";
 import { raceGaps, type RaceGapReference } from "@/lib/race-gap";
 const comparisonColors = ["#479eff", "#f59e0b", "#c084fc", "#10b981"];
@@ -106,7 +108,7 @@ function TrackMap({
 }) {
   const sections = useMemo(() => dominance(traces), [traces]);
   const [hover, setHover] = useState<number | null>(null);
-  const ref = traces[0];
+  const ref = trackGeometry(traces);
   if (!ref || !sections.length)
     return (
       <Empty>
@@ -357,6 +359,7 @@ export function SessionSummary({ data, selected, phase, theme }: {
               (l) =>
                 l.driver === d &&
                 !l.deleted &&
+                timingVerified(l) &&
                 (phase === "ALL" || l.phase === phase),
             )
             .map((l) => l.sectors[s])
@@ -1124,6 +1127,7 @@ export function PacePanels({
               </span>
             ))}
           <span>Striped = used tyres</span>
+          {data.laps.some((l) => l.quality?.issues.some((issue) => ["stint_unverified", "tyre_age_unverified"].includes(issue))) && <span>Faded = unknown tyre history</span>}
         </div>
         <div className="stints">
           {selected.map((d) => {
@@ -1136,18 +1140,20 @@ export function PacePanels({
                   {stints.map((s) => {
                     const run = laps.filter((l) => l.stint === s),
                       min = Math.min(...run.map((l) => l.number)),
-                      max = Math.max(...run.map((l) => l.number));
+                      max = Math.max(...run.map((l) => l.number)),
+                      historyKnown = !run[0].quality?.issues.some((issue) => ["stint_unverified", "tyre_age_unverified"].includes(issue));
                     return (
                       <div
                         key={s}
-                        className={`stint ${run[0].fresh ? "" : "used"}`}
+                        className={`stint ${historyKnown && !run[0].fresh ? "used" : ""}`}
                         style={{
                           left: `${((min - 1) / maxLap) * 100}%`,
                           width: `${((max - min + 1) / maxLap) * 100}%`,
                           backgroundColor:
                             compoundColors[run[0].compound] || "#888",
+                          opacity: historyKnown ? 1 : .45,
                         }}
-                        title={`${d}: ${run[0].compound}, laps ${min}–${max}, ${run[0].fresh ? "fresh" : "used"}`}
+                        title={`${d}: ${run[0].compound}, laps ${min}–${max}, ${!historyKnown ? "tyre history unavailable" : run[0].fresh ? "fresh" : "used"}`}
                       >
                         <span>{max - min + 1}</span>
                       </div>

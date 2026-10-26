@@ -39,9 +39,14 @@ def publish(job, artifact, action="publish", timeout=25):
 
 def run_job():
     function_deadline = time.monotonic() + 285
-    job = rpc("claim_analysis")
+    job = rpc("claim_analysis", {"p_openf1": os.getenv("F1_OPENF1_ENABLED") == "1"})
     if not job:
+        if os.getenv("F1_OPENF1_ENABLED") == "1":
+            from .checkpoints import cleanup
+            cleanup(rpc)
         return {"state": "idle"}
+    if job.get("provider") == "OpenF1":
+        return run_openf1(job, function_deadline)
     identity = {"p_session": job["session"]["id"], "p_lease": job["lease_token"]}
     category = "worker_failure"
     try:
@@ -99,7 +104,99 @@ def run_job():
         return {"state": "retry", "error_code": category}
 
 
-def analyze(folder):
+def run_openf1(job, function_deadline):
+    from . import checkpoints
+    from .openf1 import read_json, write_json
+    identity = {"p_session": job["session"]["id"], "p_lease": job["lease_token"]}
+    category = "worker_failure"
+    try:
+        checkpoints.cleanup(rpc)
+        with tempfile.TemporaryDirectory(prefix="f1-openf1-") as folder:
+            if job.get("checkpoint"):
+                checkpoints.restore(job["checkpoint"], folder)
+            write_json(Path(folder, "session.json"), job["session"])
+            env = {k: v for k, v in os.environ.items() if k.upper() in
+                   ("PATH", "SYSTEMROOT", "WINDIR", "TEMP", "TMP", "LANG", "LC_ALL", "SSL_CERT_FILE", "SSL_CERT_DIR")}
+            env.update(MPLCONFIGDIR=folder, XDG_CACHE_HOME=folder,
+                       PYTHONPATH=os.pathsep.join(p for p in sys.path if p))
+            # The parent reserves time to archive state and upload dependencies.
+            process = subprocess.Popen([sys.executable, "-m", "pipeline.worker", folder, "openf1"],
+                                       env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            deadline = min(time.monotonic() + 210, function_deadline - 60)
+            try:
+                while process.poll() is None:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        category = "resource_exhaustion"
+                        raise TimeoutError()
+                    try:
+                        process.wait(timeout=min(20, remaining))
+                    except subprocess.TimeoutExpired:
+                        if not rpc("heartbeat_analysis", identity):
+                            raise RuntimeError("Lease lost")
+            finally:
+                if process.poll() is None:
+                    process.kill()
+                    process.wait()
+            if not rpc("heartbeat_analysis", identity):
+                raise RuntimeError("Lease lost")
+            diagnostic = read_json(Path(folder, "diagnostics.json"), {})
+            if diagnostic:
+                print(json.dumps({"session": job["session"]["id"], "diagnostics": diagnostic}), flush=True)
+            if process.returncode == 75:
+                checkpoints.save(job, folder, rpc)
+                return {"state": "queued", "progress": read_json(Path(folder, "state.json"), {}).get("progress")}
+            if process.returncode:
+                reported = read_json(Path(folder, "failure.json"), {}).get("error_code")
+                category = reported if reported in ("source_unavailable", "resource_exhaustion", "worker_failure") else "worker_failure"
+                raise RuntimeError("OpenF1 analysis failed")
+            category = "publication_failed"
+            artifact = read_json(Path(folder, "artifact.json"))
+            # A durable full-output checkpoint precedes public uploads. Receipts
+            # survive a crash between a successful upload and the next checkpoint.
+            release = time.monotonic() + 90 >= function_deadline
+            checkpoints.save(job, folder, rpc, release=release)
+            if release:
+                return {"state": "queued"}
+            uploaded = rpc("verified_analysis_files", {**identity, "p_version": artifact["version"]}) or []
+            chunks = artifact["artifact"].get("telemetry_manifest", {}).get("chunks", [])
+            for chunk in chunks:
+                if chunk["file"] in uploaded:
+                    continue
+                if time.monotonic() + 65 >= function_deadline:
+                    checkpoints.save(job, folder, rpc)
+                    return {"state": "queued"}
+                if not rpc("heartbeat_analysis", identity):
+                    raise RuntimeError("Lease lost")
+                publish(job, {"version": artifact["version"], "file": chunk["file"], "sha256": chunk["sha256"],
+                              "chunk_json": Path(folder, chunk["file"]).read_text(encoding="utf-8")}, action="telemetry")
+                uploaded.append(chunk["file"])
+                write_json(Path(folder, "uploaded.json"), uploaded)
+            if time.monotonic() + 65 >= function_deadline:
+                checkpoints.save(job, folder, rpc)
+                return {"state": "queued"}
+            if not rpc("heartbeat_analysis", identity):
+                raise RuntimeError("Lease lost")
+            publish(job, artifact)
+            # Checkpoint garbage is cleaned independently of successful publication.
+            return {"state": "succeeded"}
+    except Exception:
+        rpc("fail_analysis", {**identity, "p_error": category})
+        return {"state": "retry", "error_code": category}
+
+
+def analyze(folder, provider="FastF1"):
+    if provider == "OpenF1":
+        from .openf1 import prepare, write_json
+        from .scheduler import correction_stage
+        from .telemetry import version_artifact
+        folder = Path(folder)
+        meta = json.loads((folder / "session.json").read_text(encoding="utf-8"))
+        artifact = prepare(meta, folder, time.monotonic() + 185)
+        if not (folder / "artifact.json").exists():
+            version = version_artifact(artifact, folder)
+            write_json(folder / "artifact.json", {"artifact": artifact, "version": version, "correction_stage": correction_stage(meta)})
+        return
     import fastf1
     from .ingest import prepare
     from .scheduler import correction_stage
@@ -117,12 +214,14 @@ def analyze(folder):
 
 if __name__ == "__main__":
     try:
-        analyze(sys.argv[1])
+        analyze(sys.argv[1], "OpenF1" if len(sys.argv) > 2 and sys.argv[2] == "openf1" else "FastF1")
     except Exception as exc:
+        if type(exc).__name__ == "YieldWork":
+            raise SystemExit(75)
         category = "worker_failure"
         if isinstance(exc, MemoryError):
             category = "resource_exhaustion"
-        elif type(exc).__name__ in ("DataNotLoadedError", "SessionNotAvailableError", "HTTPError", "ConnectionError", "Timeout", "ReadTimeout") or str(exc) in ("Lap timing is not available yet", "Session completion has not been confirmed"):
+        elif type(exc).__name__ in ("SourceUnavailable", "DataNotLoadedError", "SessionNotAvailableError", "HTTPError", "ConnectionError", "Timeout", "ReadTimeout") or str(exc) in ("Lap timing is not available yet", "Session completion has not been confirmed"):
             category = "source_unavailable"
         Path(sys.argv[1], "failure.json").write_text(json.dumps({"error_code": category}), encoding="utf-8")
         raise SystemExit(1)

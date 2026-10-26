@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
-import { validSessionId } from "@/lib/jobs";
+import { jobTiming, validSessionId } from "@/lib/jobs";
 
 export const dynamic = "force-dynamic";
 function database() {
@@ -15,12 +15,14 @@ export async function GET(request: Request) {
   if (!validSessionId(id)) return reply({ error: "Invalid session." }, 400);
   const db = database();
   if (!db) return reply({ enabled: false, job: null });
-  const control = await db.from("analysis_control").select("enabled").eq("id", true).single();
+  const control = await db.from("analysis_control").select("enabled,openf1_enabled,openf1_sessions,budget_day,daily_attempts,daily_limit").eq("id", true).single();
   if (control.error) return reply({ error: "Job status is temporarily unavailable." }, 503);
   const { data, error } = await db.from("analysis_queue")
-    .select("state,attempts,last_attempt_at,next_attempt_at,error_code").eq("session_id", id).maybeSingle();
+    .select("state,attempts,last_attempt_at,next_attempt_at,error_code,progress").eq("session_id", id).maybeSingle();
   if (error) return reply({ error: "Job status is temporarily unavailable." }, 503);
-  return reply({ enabled: control.data.enabled, job: data });
+  const enabled = control.data.enabled && control.data.openf1_enabled &&
+    (!control.data.openf1_sessions || control.data.openf1_sessions.includes(id));
+  return reply({ enabled, job: data ? jobTiming(data, control.data) : null });
 }
 export async function POST(request: Request) {
   const db = database();

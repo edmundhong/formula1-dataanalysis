@@ -503,7 +503,7 @@ export default function Dashboard() {
             )}
             <span className="eyebrow">
               {session && completedSession(session)
-                ? "PULLING FASTF1 DATA"
+                ? "PULLING SESSION DATA"
                 : session
                   ? statuses[session.status]
                   : "DATA CONNECTION"}
@@ -521,14 +521,14 @@ export default function Dashboard() {
             </h2>
             <p>
               {session && completedSession(session)
-                ? `We’re pulling ${session.event} timing and telemetry from FastF1. This page will update automatically when it is ready.`
+                ? `We’re pulling ${session.event} timing and telemetry. This page will update automatically when it is ready.`
                 : session
                   ? `${session.event} · ${new Date(session.starts_at).toLocaleString()}`
                   : "The calendar will appear as soon as the first ingestion completes."}
             </p>
             {!session || !completedSession(session) ? (
               <p>
-                Completed sessions are pulled from FastF1 automatically and the
+                Completed sessions are pulled automatically and the
                 stats will appear here when the analysis is ready.
               </p>
             ) : null}
@@ -719,7 +719,7 @@ export default function Dashboard() {
             <span>Built by Edmund Hong</span>
           </div>
           <p>
-            Data via FastF1 · Independent analysis · Not affiliated with Formula
+            Data via {currentData?.provenance.source || "OpenF1 / FastF1"} · Independent analysis · Not affiliated with Formula
             1 or the FIA.
           </p>
           <a
@@ -737,8 +737,8 @@ export default function Dashboard() {
 function InfoText() {
   return (
     <p>
-      This is independent post-session analysis using FastF1 data. Sessions from
-      2026 sessions appear in the calendar. FastF1 source availability and
+      This is independent post-session analysis using OpenF1 and retained FastF1 data. Sessions from
+      2026 appear in the calendar. Source availability and
       worker capacity can affect publication. Track dominance and telemetry
       deltas are estimates. Race-pace comparisons do not correct for fuel,
       traffic, or weather.

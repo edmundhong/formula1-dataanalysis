@@ -42,6 +42,8 @@ export interface Lap {
   pit_out: number | null;
   phase: string;
   clean: boolean;
+  /** Absent on legacy FastF1 artifacts. Unknown source fields are explicit. */
+  quality?: { issues: string[]; pit_in: boolean; pit_out: boolean };
 }
 export interface Trace {
   comparison_id?: string;
@@ -86,7 +88,10 @@ export interface Analysis {
   generated_at: string;
   provenance: {
     source: string;
-    fastf1_version: string;
+    fastf1_version?: string;
+    adapter_version?: number;
+    session_key?: number;
+    meeting_key?: number;
     units: {
       time: string;
       distance: string;

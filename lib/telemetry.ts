@@ -1,10 +1,12 @@
 import type { Analysis, Lap, Trace } from "./types";
+import { timingTrace } from "./trace-quality";
 import { validChunk } from "../supabase/functions/_shared/telemetry";
 
 export function embeddedTrace(data: Analysis, lap: Lap) {
-  return data.traces.find(
+  const trace = data.traces.find(
     (t) => t.driver === lap.driver && t.lap === lap.number,
   );
+  return trace ? timingTrace(data, trace) : undefined;
 }
 export function telemetryFile(data: Analysis, lap: Lap) {
   return data.telemetry_manifest?.laps.find(
@@ -60,5 +62,5 @@ export async function fetchTelemetryChunk(
   return validateTelemetryChunk(
     JSON.parse(new TextDecoder().decode(bytes)),
     data.session_id,
-  );
+  ).map((trace) => timingTrace(data, trace));
 }

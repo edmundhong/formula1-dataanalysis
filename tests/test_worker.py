@@ -81,3 +81,40 @@ def test_all_chunks_precede_manifest_publication(tmp_path):
         assert publish.call_count == 2
         assert publish.call_args_list[0].kwargs["action"] == "telemetry"
         assert "action" not in publish.call_args_list[1].kwargs
+
+
+def test_openf1_yield_saves_checkpoint_without_recording_failure(tmp_path):
+    process = MagicMock()
+    process.poll.return_value = 75
+    process.returncode = 75
+    job = {"provider": "OpenF1", "session": {"id": "2026-18-Q"}, "lease_token": "lease"}
+    with patch("pipeline.worker.rpc", return_value=True) as rpc, \
+         patch("pipeline.worker.subprocess.Popen", return_value=process), \
+         patch("pipeline.worker.tempfile.TemporaryDirectory", return_value=nullcontext(str(tmp_path))), \
+         patch("pipeline.checkpoints.cleanup"), patch("pipeline.checkpoints.save") as save, \
+         patch("pipeline.worker.publish") as publish:
+        from pipeline.worker import run_openf1
+        assert run_openf1(job, 10**20)["state"] == "queued"
+        save.assert_called_once()
+        publish.assert_not_called()
+        assert not any(c.args[0] == "fail_analysis" for c in rpc.call_args_list)
+
+
+def test_openf1_receipts_resume_publication_and_checkpoint_precedes_pointer(tmp_path):
+    process = publication_fixture(tmp_path)
+    job = {"provider": "OpenF1", "session": {"id": "2026-18-Q"}, "lease_token": "lease"}
+    calls = []
+    def rpc(name, payload=None):
+        if name == "verified_analysis_files":
+            return ["a" * 20 + ".telemetry-0000.json"]
+        return True
+    with patch("pipeline.worker.rpc", side_effect=rpc), \
+         patch("pipeline.worker.subprocess.Popen", return_value=process), \
+         patch("pipeline.worker.tempfile.TemporaryDirectory", return_value=nullcontext(str(tmp_path))), \
+         patch("pipeline.checkpoints.cleanup"), \
+         patch("pipeline.checkpoints.save", side_effect=lambda *a, **k: calls.append("checkpoint")), \
+         patch("pipeline.worker.publish", side_effect=lambda *a, **k: calls.append("publish")) as publish:
+        from pipeline.worker import run_openf1
+        assert run_openf1(job, 10**20)["state"] == "succeeded"
+        assert calls == ["checkpoint", "publish"]
+        publish.assert_called_once()  # Already verified chunks are not re-uploaded.

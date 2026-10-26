@@ -13,6 +13,25 @@ export interface Manifest {
     reason: string | null;
   }[];
 }
+export function verifyTelemetryReceipts(
+  manifest: Manifest | null,
+  receipts: { file: string; bytes: number; sha256: string; laps: { driver: string; lap: number }[] }[],
+): number {
+  const verified = new Map(receipts.map((r) => [r.file, r]));
+  let bytes = 0;
+  for (const chunk of manifest?.chunks || []) {
+    const receipt = verified.get(chunk.file);
+    if (!receipt || Number(receipt.bytes) !== chunk.bytes || receipt.sha256 !== chunk.sha256)
+      throw new Error("Telemetry dependency has not been verified");
+    const indexed = manifest!.laps.filter((l) => l.chunk === chunk.file);
+    const actual = new Set(receipt.laps?.map((l) => `${l.driver}/${l.lap}`));
+    if (!Array.isArray(receipt.laps) || actual.size !== receipt.laps.length || actual.size !== indexed.length ||
+        indexed.some((l) => !actual.has(`${l.driver}/${l.lap}`)))
+      throw new Error("Telemetry index mismatch");
+    bytes += chunk.bytes;
+  }
+  return bytes;
+}
 export function validTelemetryFile(
   file: unknown,
   version: string,

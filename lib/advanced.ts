@@ -23,9 +23,9 @@ export const phaseLabel = (phase: string, code: string) =>
 export function lapFlags(lap: Lap) {
   return [
     lap.deleted && "Deleted",
-    !lap.accurate && "Inaccurate",
-    lap.pit_in != null && "Pit in",
-    lap.pit_out != null && "Pit out",
+    (lap.quality?.issues.length ? "Unverified source fields" : !lap.accurate && "Inaccurate"),
+    (lap.pit_in != null || lap.quality?.pit_in) && "Pit in",
+    (lap.pit_out != null || lap.quality?.pit_out) && "Pit out",
     lap.track_status !== "1" && "Disrupted",
     lap.time == null
       ? "No time"

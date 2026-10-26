@@ -1,5 +1,9 @@
 # Durable Vercel analysis queue
 
+The [OpenF1 migration](openf1-migration.md) adds resumable processing to this
+baseline. After applying that migration, install `supabase/openf1-dispatch.sql`
+instead of the original dispatcher and follow its provider activation gates.
+
 The report's production follow-up is implemented with a Supabase database queue,
 Supabase Cron dispatch, and a separate bounded Python Vercel deployment. No live
 deployment or database change is performed by adding these files. The queue accepts

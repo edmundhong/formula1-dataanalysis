@@ -1,4 +1,5 @@
 import type { Analysis, Lap, Trace } from "./types";
+import { timingTrace } from "./trace-quality";
 export const compoundColors: Record<string, string> = {
   SOFT: "#ee454e",
   MEDIUM: "#eebc3f",
@@ -17,6 +18,9 @@ export function median(v: number[]) {
   const m = Math.floor(a.length / 2);
   return a.length ? (a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2) : null;
 }
+export function timingVerified(lap: Lap) {
+  return !lap.quality?.issues.some((issue) => ["timing_unverified", "validity_unverified", "phase_unverified", "pit_unverified"].includes(issue));
+}
 export function bestLaps(laps: Lap[], phase = "ALL") {
   const best = new Map<string, Lap>();
   for (const l of laps)
@@ -26,6 +30,9 @@ export function bestLaps(laps: Lap[], phase = "ALL") {
       !l.deleted &&
       l.pit_in == null &&
       l.pit_out == null &&
+      !l.quality?.pit_in &&
+      !l.quality?.pit_out &&
+      timingVerified(l) &&
       (phase === "ALL" || l.phase === phase)
     ) {
       if (!best.has(l.driver) || l.time < best.get(l.driver)!.time!)
@@ -59,7 +66,8 @@ export function paceLaps(laps: Lap[], f: PaceFilters) {
 export function selectedTraces(a: Analysis, drivers: string[], phase: string) {
   return drivers
     .map((d) => a.traces.find((t) => t.driver === d && t.phase === phase))
-    .filter((t): t is Trace => !!t);
+    .filter((t): t is Trace => !!t)
+    .map((t) => timingTrace(a, t));
 }
 export interface DominanceSection {
   index: number;

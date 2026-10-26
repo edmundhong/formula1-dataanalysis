@@ -7,7 +7,10 @@ import math
 def fastest_laps(laps, phase="ALL"):
     best = {}
     for lap in laps:
-        if lap["time"] is None or lap["time"] <= 0 or lap["deleted"] or lap["pit_in"] is not None or lap["pit_out"] is not None:
+        quality = lap.get("quality", {})
+        if (lap["time"] is None or lap["time"] <= 0 or lap["deleted"] or lap["pit_in"] is not None or lap["pit_out"] is not None
+                or quality.get("pit_in") or quality.get("pit_out")
+                or set(quality.get("issues", [])) & {"timing_unverified", "validity_unverified", "phase_unverified", "pit_unverified"}):
             continue
         if phase != "ALL" and lap["phase"] != phase:
             continue
@@ -23,7 +26,9 @@ def mark_clean_laps(laps):
         eligible = (lap["time"] is not None and lap["time"] > 0
                     and not lap["deleted"] and lap["accurate"]
                     and lap["track_status"] == "1" and lap["number"] > 1
-                    and lap["pit_in"] is None and lap["pit_out"] is None)
+                    and lap["pit_in"] is None and lap["pit_out"] is None
+                    and not lap.get("quality", {}).get("issues")
+                    and not lap.get("quality", {}).get("pit_in") and not lap.get("quality", {}).get("pit_out"))
         lap["clean"] = bool(eligible)
         if eligible:
             groups[(lap["driver"], lap["stint"])].append(lap["time"])

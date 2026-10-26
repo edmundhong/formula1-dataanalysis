@@ -1,9 +1,9 @@
-import { median } from "./analysis";
+import { median, timingVerified } from "./analysis";
 import type { Analysis, Lap } from "./types";
 
 export function sectorRankings(laps: Lap[], drivers: string[], metric: "median" | "fastest") {
   return [0, 1, 2].map((sector) => drivers.flatMap((driver) => {
-    const values = laps.filter((lap) => lap.driver === driver)
+    const values = laps.filter((lap) => lap.driver === driver && timingVerified(lap))
       .map((lap) => lap.sectors[sector])
       .filter((v): v is number => v != null && Number.isFinite(v) && v > 0);
     if (!values.length) return [];
