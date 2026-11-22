@@ -51,29 +51,35 @@ export default function Chart({
   useEffect(() => { hoverCallback.current = onDistanceHover; }, [onDistanceHover]);
   useEffect(() => {
     if (!node.current) return;
-    const dark = theme === "dark";
+    const styles = getComputedStyle(node.current);
+    const accent = styles.getPropertyValue("--accent").trim();
+    const text = styles.getPropertyValue("--text").trim();
+    const muted = styles.getPropertyValue("--muted").trim();
+    const panel = styles.getPropertyValue("--panel-alt").trim();
+    const border = styles.getPropertyValue("--border").trim();
+    const grid = styles.getPropertyValue("--grid").trim();
     const chart = echarts.init(node.current, undefined, { renderer: "canvas" });
     chart.setOption({
       animationDuration: 350,
       backgroundColor: "transparent",
-      color: ["#ff5b55", "#479eff", "#40c6a1", "#b593f5"],
+      color: [accent, "#479eff", "#b593f5", "#df789c"],
       textStyle: {
         fontFamily: "Arial, sans-serif",
-        color: dark ? "#a6adbd" : "#606779",
+        color: muted,
         fontSize: 12,
       },
       aria: { enabled: true, decal: { show: true } },
       tooltip: {
         trigger: "axis",
-        backgroundColor: dark ? "#20252e" : "#fff",
-        borderColor: dark ? "#383f4b" : "#d9dee7",
-        textStyle: { color: dark ? "#edf0f5" : "#18202b" },
+        backgroundColor: panel,
+        borderColor: border,
+        textStyle: { color: text },
       },
       grid: { left: 52, right: 22, top: 35, bottom: 48, containLabel: false },
       legend: {
         show: true,
         top: 0,
-        textStyle: { color: dark ? "#b8c0cc" : "#49505d" },
+        textStyle: { color: muted },
         itemWidth: 16,
         itemHeight: 3,
       },
@@ -81,15 +87,15 @@ export default function Chart({
         type: "value",
         nameLocation: "middle",
         nameGap: 28,
-        axisLine: { lineStyle: { color: dark ? "#363c48" : "#d4d9e3" } },
+        axisLine: { lineStyle: { color: border } },
         splitLine: { show: false },
-        axisLabel: { color: dark ? "#969eaf" : "#606779" },
+        axisLabel: { color: muted },
       },
       yAxis: {
         type: "value",
         scale: true,
-        splitLine: { lineStyle: { color: dark ? "#272d37" : "#edf0f5" } },
-        axisLabel: { color: dark ? "#969eaf" : "#606779" },
+        splitLine: { lineStyle: { color: grid } },
+        axisLabel: { color: muted },
       },
     });
     // Merge axis overrides into the defaults, preserving scale and theme styling.

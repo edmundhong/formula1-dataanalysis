@@ -346,7 +346,7 @@ export default function Dashboard() {
         <div className="page-intro">
           <div>
             <div className="eyebrow">
-              <span className="red-line" />
+              <span className="accent-line" />
               THE NUMBERS BEHIND THE RACING
             </div>
             <h1>

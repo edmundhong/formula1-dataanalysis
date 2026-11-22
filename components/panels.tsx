@@ -28,7 +28,7 @@ import { trackPosition } from "@/lib/track-position";
 import { trackGeometry } from "@/lib/trace-quality";
 import { SectorPaceMap } from "./sector-pace-map";
 import { raceGaps, type RaceGapReference } from "@/lib/race-gap";
-const comparisonColors = ["#479eff", "#f59e0b", "#c084fc", "#10b981"];
+const comparisonColors = ["#479eff", "#008c83", "#c084fc", "#d76493"];
 const comparisonColor = (index: number) => comparisonColors[index % comparisonColors.length];
 const traceColor = (t: Trace, traces: Trace[]) => comparisonColor(t.comparison_id?.startsWith("slot-") ? Number(t.comparison_id.slice(5)) : traces.indexOf(t));
 const traceId = (t: Trace) => t.comparison_id ?? t.driver;
@@ -1258,17 +1258,17 @@ export function WeatherPanel({
         line(
           "Track",
           data.weather.map((w) => [w.minute, w.track]),
-          "#f07853",
+          theme === "dark" ? "#81d8d0" : "#00776e",
         ),
         line(
           "Air",
           data.weather.map((w) => [w.minute, w.air]),
-          "#60a8ed",
+          theme === "dark" ? "#7bb5f0" : "#427db9",
           1,
         ),
       ],
     }),
-    [data],
+    [data, theme],
   );
   if (!data.weather.length) return null;
   return (
