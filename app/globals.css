@@ -138,29 +138,29 @@
   }
 }
 :root {
-  --bg: #f1f8f7;
+  --bg: #f5f6f8;
   --panel: #fff;
-  --panel-alt: #f7fbfa;
-  --text: #142a29;
-  --muted: #536d6a;
-  --border: #d6e7e4;
+  --panel-alt: #f9fafb;
+  --text: #18202b;
+  --muted: #737b89;
+  --border: #e2e5eb;
   --accent: #00776e;
   --petronas-green: #00a19c;
   --tiffany-blue: #81d8d0;
-  --soft: #e3f2ef;
-  --grid: #e5f0ee;
+  --soft: #edf0f5;
+  --grid: #edf0f5;
   color-scheme: light;
 }
 :root[data-theme="dark"] {
-  --bg: #0d1717;
-  --panel: #142222;
-  --panel-alt: #192b2a;
-  --text: #ebf7f5;
-  --muted: #9bb8b4;
-  --border: #2b4441;
+  --bg: #101318;
+  --panel: #181c23;
+  --panel-alt: #1c2129;
+  --text: #f1f2f5;
+  --muted: #8c95a5;
+  --border: #2b313c;
   --accent: var(--tiffany-blue);
-  --soft: #223936;
-  --grid: #263b39;
+  --soft: #232a34;
+  --grid: #262d38;
   color-scheme: dark;
 }
 * {
@@ -444,7 +444,7 @@ select optgroup {
   background: #dfb261;
 }
 .status-dot.ready {
-  background: #56bfa0;
+  background: var(--accent);
 }
 .view-bar {
   display: flex;
@@ -537,7 +537,6 @@ select optgroup {
 }
 .stat-card-rain {
   border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
-  background: linear-gradient(135deg, color-mix(in srgb, var(--tiffany-blue) 20%, transparent), transparent 80%), var(--panel);
   box-shadow: inset 3px 0 0 var(--accent);
 }
 .stat-card > span {
